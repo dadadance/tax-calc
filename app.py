@@ -369,13 +369,13 @@ with st.sidebar:
         # Manage profiles
         with st.expander("🗑️ Manage Profiles", expanded=False):
             for profile in saved_profiles[:5]:  # Show first 5
-                col1, col2 = st.columns([4, 1])
+                col1, col2 = st.columns([3, 1])
                 with col1:
                     st.caption(f"**{profile['name']}**")
                     if profile['description']:
                         st.caption(profile['description'][:50] + "..." if len(profile['description']) > 50 else profile['description'])
                 with col2:
-                    if st.button("Delete", key=f"delete_{profile['name']}", use_container_width=True):
+                    if st.button("🗑️", key=f"delete_{profile['name']}", use_container_width=True, help=f"Delete {profile['name']}"):
                         try:
                             if delete_profile(profile['name']):
                                 st.success(f"✓ Deleted: {profile['name']}")
