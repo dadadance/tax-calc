@@ -478,20 +478,51 @@ with tab1:
     st.subheader("Salary / Employment Income")
     
     with st.expander("Add Salary Source", expanded=True):
-        monthly_gross = st.number_input(
-            "Monthly Gross Salary (GEL)",
-            min_value=0.0,
-            value=3000.0,
-            step=100.0,
-            key="salary_monthly"
+        input_mode = st.radio(
+            "Input Mode",
+            ["Monthly", "Annual"],
+            index=0,
+            horizontal=True,
+            key="salary_input_mode",
+            help="Choose whether to input monthly or annual salary"
         )
-        months = st.number_input(
-            "Months Worked",
-            min_value=1,
-            max_value=12,
-            value=12,
-            key="salary_months"
-        )
+        
+        if input_mode == "Monthly":
+            monthly_gross = st.number_input(
+                "Monthly Gross Salary (GEL)",
+                min_value=0.0,
+                value=3000.0,
+                step=100.0,
+                key="salary_monthly"
+            )
+            months = st.number_input(
+                "Months Worked",
+                min_value=1,
+                max_value=12,
+                value=12,
+                key="salary_months"
+            )
+            annual_gross = monthly_gross * months
+            st.caption(f"💡 Annual equivalent: {annual_gross:,.2f} GEL")
+        else:
+            annual_gross_input = st.number_input(
+                "Annual Gross Salary (GEL)",
+                min_value=0.0,
+                value=36000.0,
+                step=1000.0,
+                key="salary_annual"
+            )
+            months = st.number_input(
+                "Months Worked",
+                min_value=1,
+                max_value=12,
+                value=12,
+                key="salary_months_annual"
+            )
+            monthly_gross = annual_gross_input / months if months > 0 else 0
+            annual_gross = annual_gross_input
+            st.caption(f"💡 Monthly equivalent: {monthly_gross:,.2f} GEL/month")
+        
         pension_rate = st.selectbox(
             "Employee Pension Contribution Rate",
             [0.02, 0.04],
@@ -507,7 +538,10 @@ with tab1:
                     'months': int(months),
                     'pension_rate': pension_rate
                 })
-                st.success(f"Added salary source: {monthly_gross:,.0f} GEL/month × {months} months")
+                if input_mode == "Monthly":
+                    st.success(f"Added salary source: {monthly_gross:,.0f} GEL/month × {months} months")
+                else:
+                    st.success(f"Added salary source: {annual_gross:,.0f} GEL/year ({months} months)")
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Salary Source", monthly_gross=monthly_gross, months=months)
@@ -516,24 +550,55 @@ with tab1:
     if st.session_state.salary_inputs:
         st.subheader("Current Salary Sources")
         for idx, sal in enumerate(st.session_state.salary_inputs):
-            with st.expander(f"Source {idx + 1}: {sal['monthly_gross']:,.0f} GEL/month × {sal['months']} months", expanded=False):
-                col1, col2 = st.columns(2)
-                with col1:
-                    edit_monthly = st.number_input(
-                        "Monthly Gross Salary (GEL)",
+            annual_equiv = sal['monthly_gross'] * sal['months']
+            with st.expander(f"Source {idx + 1}: {sal['monthly_gross']:,.0f} GEL/month × {sal['months']} months ({annual_equiv:,.0f} GEL/year)", expanded=False):
+                edit_input_mode = st.radio(
+                    "Input Mode",
+                    ["Monthly", "Annual"],
+                    index=0,
+                    horizontal=True,
+                    key=f"edit_salary_mode_{idx}",
+                    help="Choose whether to input monthly or annual salary"
+                )
+                
+                if edit_input_mode == "Monthly":
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        edit_monthly = st.number_input(
+                            "Monthly Gross Salary (GEL)",
+                            min_value=0.0,
+                            value=sal['monthly_gross'],
+                            step=100.0,
+                            key=f"edit_salary_monthly_{idx}"
+                        )
+                    with col2:
+                        edit_months = st.number_input(
+                            "Months Worked",
+                            min_value=1,
+                            max_value=12,
+                            value=sal['months'],
+                            key=f"edit_salary_months_{idx}"
+                        )
+                    edit_annual_equiv = edit_monthly * edit_months
+                    st.caption(f"💡 Annual equivalent: {edit_annual_equiv:,.2f} GEL")
+                else:
+                    edit_annual = st.number_input(
+                        "Annual Gross Salary (GEL)",
                         min_value=0.0,
-                        value=sal['monthly_gross'],
-                        step=100.0,
-                        key=f"edit_salary_monthly_{idx}"
+                        value=sal['monthly_gross'] * sal['months'],
+                        step=1000.0,
+                        key=f"edit_salary_annual_{idx}"
                     )
-                with col2:
                     edit_months = st.number_input(
                         "Months Worked",
                         min_value=1,
                         max_value=12,
                         value=sal['months'],
-                        key=f"edit_salary_months_{idx}"
+                        key=f"edit_salary_months_annual_{idx}"
                     )
+                    edit_monthly = edit_annual / edit_months if edit_months > 0 else 0
+                    st.caption(f"💡 Monthly equivalent: {edit_monthly:,.2f} GEL/month")
+                
                 edit_pension = st.number_input(
                     "Employee Pension Rate",
                     min_value=0.0,
