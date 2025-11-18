@@ -410,7 +410,7 @@ def calculate_property_tax(property_inputs: List[PropertyTaxInput]) -> RegimeRes
                 result=0.0,
                 legal_ref="RS.ge - Property Tax (Threshold Exemption)"
             ))
-                    # Warning removed - exemption status shown in UI
+            # Warning removed - exemption status shown in UI
         else:
             # Simplified property tax calculation
             # Basic estimate: property tax typically ranges from 0.5% to 1.5% of property value
