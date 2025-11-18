@@ -167,10 +167,17 @@ Where:
 - **Valuation:** Based on user-provided market value or purchase price
 - **Verification warnings:** Clear notices about threshold discrepancies
 
+### Current Features
+- **Property Types:** Support for residential, commercial, and agricultural properties
+- **Municipality Presets:** Quick selection for common municipalities (Tbilisi, Batumi, Kutaisi, etc.)
+- **Custom Rates:** Full flexibility to set custom tax rates
+- **Property Type Tracking:** Each property can be categorized by type
+- **Verification Warnings:** Clear notices about verifying rates with local municipality
+
 ### Remaining Limitations
-- Does not account for property type variations (residential vs commercial vs agricultural)
 - Uses user-provided values (not RS.ge assessed values)
-- Users should verify threshold applicability with RS.ge
+- Property type-specific rates are informational only (users set the actual rate)
+- Users should verify threshold applicability and exact rates with RS.ge
 
 ## Verification and Updates
 

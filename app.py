@@ -269,6 +269,7 @@ with st.sidebar:
                             family_income=p.get('family_income', 0),
                             properties=p.get('properties', 0),
                             property_values=p.get('property_values', []),
+                            property_types=p.get('property_types', []),
                             tax_rate=p.get('tax_rate', 0.01),
                             income_threshold=p.get('income_threshold', 40000.0)
                         ) for p in st.session_state.property_inputs]
@@ -1427,6 +1428,20 @@ with tab8:
         else:
             st.warning(f"⚠️ Your income ({calculated_family_income:,.2f} GEL) is below RS.ge threshold ({default_threshold:,.0f} GEL). You may be exempt from property tax.")
     
+    # Municipality presets (typical rates - verify with local municipality)
+    # Defined here so it's accessible in both add and edit forms
+    municipality_presets = {
+        "Standard (1.0%)": 1.0,
+        "Tbilisi (typically 1.0%)": 1.0,
+        "Batumi (typically 0.8% - 1.0%)": 1.0,
+        "Kutaisi (typically 0.8% - 1.0%)": 1.0,
+        "Rustavi (typically 0.8% - 1.0%)": 1.0,
+        "Gori (typically 0.8% - 1.0%)": 1.0,
+        "Zugdidi (typically 0.8% - 1.0%)": 1.0,
+        "Poti (typically 0.8% - 1.0%)": 1.0,
+        "Custom Rate": None
+    }
+    
     with st.expander("Add Property Tax Info", expanded=True):
         st.caption("💡 **Note:** Income is automatically calculated from all your income sources above. You can override it below if needed.")
         
@@ -1481,31 +1496,70 @@ with tab8:
             help="Enter the number of properties you own"
         )
         
-        # Property tax rate input
-        tax_rate = st.number_input(
-            "Property Tax Rate (%)",
-            min_value=0.0,
-            max_value=2.0,
-            value=1.0,
-            step=0.1,
-            key="property_tax_rate",
-            help="Enter the property tax rate as a percentage (default: 1%). Rates may vary by municipality (typically 0.5% - 1%)"
+        # Property tax rate input with municipality presets
+        st.subheader("Property Tax Rate")
+        
+        rate_mode = st.selectbox(
+            "Select Municipality or Custom Rate",
+            options=list(municipality_presets.keys()),
+            index=0,
+            key="municipality_rate_mode",
+            help="Select your municipality for preset rate, or choose Custom to enter manually. Rates may vary - verify with your local municipality."
         )
+        
+        if municipality_presets[rate_mode] is not None:
+            tax_rate = municipality_presets[rate_mode]
+            st.info(f"Using preset rate: **{tax_rate:.1f}%** (verify with your municipality)")
+        else:
+            tax_rate = st.number_input(
+                "Custom Property Tax Rate (%)",
+                min_value=0.0,
+                max_value=2.0,
+                value=1.0,
+                step=0.1,
+                key="property_tax_rate_custom",
+                help="Enter the property tax rate as a percentage. Rates typically range from 0.5% to 1% but may vary by municipality and property type."
+            )
+            st.caption("💡 **Note:** Verify the exact rate with your local municipality or RS.ge")
+        
         tax_rate_decimal = tax_rate / 100.0
         
-        # Property values input
+        # Property values and types input
         st.caption(f"💡 **Property Tax Rate:** {tax_rate:.1f}% of property value annually (based on market value or purchase price)")
         property_values = []
+        property_types = []
+        
+        # Property type rate multipliers (typical rates relative to standard 1%)
+        property_type_info = {
+            "residential": {"rate_multiplier": 1.0, "typical_rate": "0.5% - 1%", "description": "Residential property (apartments, houses)"},
+            "commercial": {"rate_multiplier": 1.0, "typical_rate": "1% - 1.5%", "description": "Commercial property (offices, shops, warehouses)"},
+            "agricultural": {"rate_multiplier": 0.5, "typical_rate": "0.3% - 0.5%", "description": "Agricultural land"}
+        }
+        
         for i in range(int(properties)):
-            prop_value = st.number_input(
-                f"Property {i + 1} Value (GEL)",
-                min_value=0.0,
-                value=100000.0,
-                step=1000.0,
-                key=f"property_value_{i}",
-                help="Enter market value or purchase price of the property"
-            )
-            property_values.append(prop_value)
+            col1, col2 = st.columns([2, 1])
+            with col1:
+                prop_value = st.number_input(
+                    f"Property {i + 1} Value (GEL)",
+                    min_value=0.0,
+                    value=100000.0,
+                    step=1000.0,
+                    key=f"property_value_{i}",
+                    help="Enter market value or purchase price of the property"
+                )
+                property_values.append(prop_value)
+            with col2:
+                prop_type = st.selectbox(
+                    f"Property {i + 1} Type",
+                    options=list(property_type_info.keys()),
+                    index=0,
+                    key=f"property_type_{i}",
+                    help=f"Select property type. Typical rates: {property_type_info[list(property_type_info.keys())[0]]['typical_rate']}"
+                )
+                property_types.append(prop_type)
+                # Show info about typical rate for this property type
+                type_info = property_type_info[prop_type]
+                st.caption(f"💡 {type_info['description']} (typically {type_info['typical_rate']})")
         
         total_property_value = sum(property_values)
         estimated_tax = total_property_value * tax_rate_decimal if family_income > income_threshold else 0.0
@@ -1521,6 +1575,7 @@ with tab8:
                     'family_income': family_income,
                     'properties': int(properties),
                     'property_values': property_values.copy(),
+                    'property_types': property_types.copy(),
                     'tax_rate': tax_rate_decimal,
                     'income_threshold': income_threshold,
                     'use_calculated': use_calculated
@@ -1542,6 +1597,7 @@ with tab8:
             
             properties = prop.get('properties', 0)
             property_values = prop.get('property_values', [])
+            property_types = prop.get('property_types', ['residential'] * len(property_values) if property_values else [])
             tax_rate = prop.get('tax_rate', 0.01)
             income_threshold = prop.get('income_threshold', 40000.0)
             total_property_value = sum(property_values) if property_values else 0.0
@@ -1552,6 +1608,13 @@ with tab8:
             display_text = f"Info {idx + 1}: {properties} properties"
             if total_property_value > 0:
                 display_text += f", {total_property_value:,.0f} GEL total value"
+            # Show property types summary
+            if property_types:
+                type_counts = {}
+                for pt in property_types:
+                    type_counts[pt] = type_counts.get(pt, 0) + 1
+                type_summary = ", ".join([f"{count} {pt}" for pt, count in type_counts.items()])
+                display_text += f" ({type_summary})"
             display_text += f", {tax_rate*100:.1f}% rate"
             display_text += f", threshold: {income_threshold:,.0f} GEL"
             display_text += f", {current_family_income:,.0f} GEL income{income_source_note} - {status}"
@@ -1607,37 +1670,83 @@ with tab8:
                         help="Enter custom threshold (e.g., 65,000 GEL for family income - verify with RS.ge)"
                     )
                 
-                # Property tax rate editing
-                current_tax_rate = prop.get('tax_rate', 0.01) * 100.0  # Convert to percentage
-                edit_tax_rate = st.number_input(
-                    "Property Tax Rate (%)",
-                    min_value=0.0,
-                    max_value=2.0,
-                    value=current_tax_rate,
-                    step=0.1,
-                    key=f"edit_property_tax_rate_{idx}",
-                    help="Enter the property tax rate as a percentage (default: 1%). Rates may vary by municipality"
+                # Property tax rate editing with municipality presets
+                st.subheader("Property Tax Rate")
+                current_tax_rate_pct = prop.get('tax_rate', 0.01) * 100.0  # Convert to percentage
+                
+                # Find matching preset or default to Custom
+                matching_preset = None
+                for preset_name, preset_rate in municipality_presets.items():
+                    if preset_rate is not None and abs(preset_rate - current_tax_rate_pct) < 0.01:
+                        matching_preset = preset_name
+                        break
+                
+                rate_mode_edit = st.selectbox(
+                    "Select Municipality or Custom Rate",
+                    options=list(municipality_presets.keys()),
+                    index=list(municipality_presets.keys()).index(matching_preset) if matching_preset else len(municipality_presets) - 1,
+                    key=f"edit_municipality_rate_mode_{idx}",
+                    help="Select your municipality for preset rate, or choose Custom to enter manually"
                 )
+                
+                if municipality_presets[rate_mode_edit] is not None:
+                    edit_tax_rate = municipality_presets[rate_mode_edit]
+                    st.info(f"Using preset rate: **{edit_tax_rate:.1f}%** (verify with your municipality)")
+                else:
+                    edit_tax_rate = st.number_input(
+                        "Custom Property Tax Rate (%)",
+                        min_value=0.0,
+                        max_value=2.0,
+                        value=current_tax_rate_pct,
+                        step=0.1,
+                        key=f"edit_property_tax_rate_{idx}",
+                        help="Enter the property tax rate as a percentage. Rates typically range from 0.5% to 1% but may vary by municipality and property type."
+                    )
+                    st.caption("💡 **Note:** Verify the exact rate with your local municipality or RS.ge")
+                
                 edit_tax_rate_decimal = edit_tax_rate / 100.0
                 
-                # Property values editing
+                # Property values and types editing
                 st.caption(f"💡 **Property Tax Rate:** {edit_tax_rate:.1f}% of property value annually")
                 edit_property_values = []
+                edit_property_types = []
                 current_values = property_values if property_values else [0.0] * properties
-                # Ensure we have enough values for the current property count
+                current_types = property_types if property_types else ['residential'] * len(current_values)
+                # Ensure we have enough values/types for the current property count
                 while len(current_values) < edit_properties:
                     current_values.append(0.0)
+                while len(current_types) < edit_properties:
+                    current_types.append('residential')
+                
+                property_type_info = {
+                    "residential": {"rate_multiplier": 1.0, "typical_rate": "0.5% - 1%", "description": "Residential property (apartments, houses)"},
+                    "commercial": {"rate_multiplier": 1.0, "typical_rate": "1% - 1.5%", "description": "Commercial property (offices, shops, warehouses)"},
+                    "agricultural": {"rate_multiplier": 0.5, "typical_rate": "0.3% - 0.5%", "description": "Agricultural land"}
+                }
                 
                 for i in range(int(edit_properties)):
-                    prop_value = st.number_input(
-                        f"Property {i + 1} Value (GEL)",
-                        min_value=0.0,
-                        value=current_values[i] if i < len(current_values) else 100000.0,
-                        step=1000.0,
-                        key=f"edit_property_value_{idx}_{i}",
-                        help="Enter market value or purchase price of the property"
-                    )
-                    edit_property_values.append(prop_value)
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        prop_value = st.number_input(
+                            f"Property {i + 1} Value (GEL)",
+                            min_value=0.0,
+                            value=current_values[i] if i < len(current_values) else 100000.0,
+                            step=1000.0,
+                            key=f"edit_property_value_{idx}_{i}",
+                            help="Enter market value or purchase price of the property"
+                        )
+                        edit_property_values.append(prop_value)
+                    with col2:
+                        prop_type = st.selectbox(
+                            f"Property {i + 1} Type",
+                            options=list(property_type_info.keys()),
+                            index=list(property_type_info.keys()).index(current_types[i]) if i < len(current_types) and current_types[i] in property_type_info else 0,
+                            key=f"edit_property_type_{idx}_{i}",
+                            help=f"Select property type"
+                        )
+                        edit_property_types.append(prop_type)
+                        type_info = property_type_info[prop_type]
+                        st.caption(f"💡 {type_info['description']}")
                 
                 edit_total_value = sum(edit_property_values)
                 edit_estimated_tax = edit_total_value * edit_tax_rate_decimal if edit_family_income > edit_income_threshold else 0.0
@@ -1655,6 +1764,7 @@ with tab8:
                                 'family_income': edit_family_income,
                                 'properties': int(edit_properties),
                                 'property_values': edit_property_values.copy(),
+                                'property_types': edit_property_types.copy(),
                                 'tax_rate': edit_tax_rate_decimal,
                                 'income_threshold': edit_income_threshold,
                                 'use_calculated': use_calculated_edit
@@ -1844,6 +1954,7 @@ try:
             family_income=p.get('family_income', calculate_total_family_income()) if not p.get('use_calculated', False) else calculate_total_family_income(),
             properties=p.get('properties', 0),
             property_values=p.get('property_values', []),
+            property_types=p.get('property_types', []),
             tax_rate=p.get('tax_rate', 0.01),
             income_threshold=p.get('income_threshold', 40000.0)
         ) for p in st.session_state.property_inputs]
