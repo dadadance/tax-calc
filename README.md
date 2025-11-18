@@ -82,7 +82,8 @@ Covered **regimes and income types**:
 - Complex double-taxation treaty handling and foreign tax credits.
 - Corporate taxes, VAT, excise, customs.
 - Full automation for every RS.declaration variant.
-- User accounts, saving scenarios, historical tracking.
+- User accounts (profiles are saved locally in SQLite database).
+- Historical tracking (profiles can be saved and loaded).
 - Multi-language beyond **Georgian + English** (for v1, only these).
 
 ---

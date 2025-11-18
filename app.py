@@ -14,6 +14,8 @@ from tax_core.models import (
 )
 from tax_core.calculators import calculate_all
 from tax_core.error_logger import log_app_error
+from tax_core.example_profiles import EXAMPLE_PROFILES, get_example_profile
+from tax_core.profile_db import save_profile, load_profile, list_profiles, delete_profile, get_profile_info, init_db
 
 
 # Page config
@@ -32,11 +34,142 @@ st.subheader("For individuals – unofficial estimation tool")
 with st.sidebar:
     st.header("Profile & Settings")
     
-    tax_year = st.selectbox("Tax Year", [2024, 2025], index=1)
+    # Example Profiles Loader
+    st.subheader("📋 Example Profiles")
+    st.caption("Load example profiles to see how calculations work")
+    
+    profile_options = ["None (Start Fresh)"] + [EXAMPLE_PROFILES[k]["name"] for k in EXAMPLE_PROFILES.keys()]
+    selected_example = st.selectbox(
+        "Load Example Profile",
+        profile_options,
+        index=0,
+        key="example_profile_selector",
+        help="Select an example profile to quickly populate the form with sample data"
+    )
+    
+    if selected_example != "None (Start Fresh)":
+        # Find the profile key
+        profile_key = None
+        for key, data in EXAMPLE_PROFILES.items():
+            if data["name"] == selected_example:
+                profile_key = key
+                break
+        
+        if profile_key and st.button("🔄 Load Profile", use_container_width=True):
+            example_data = EXAMPLE_PROFILES[profile_key]
+            example_profile = example_data["profile"]
+            
+            # Clear existing inputs
+            st.session_state.salary_inputs = []
+            st.session_state.micro_inputs = []
+            st.session_state.small_inputs = []
+            st.session_state.rental_inputs = []
+            st.session_state.cg_inputs = []
+            st.session_state.dividends_inputs = []
+            st.session_state.interest_inputs = []
+            st.session_state.property_inputs = []
+            
+            # Populate salary
+            for salary in example_profile.salary:
+                st.session_state.salary_inputs.append({
+                    'monthly_gross': salary.monthly_gross,
+                    'months': salary.months,
+                    'pension_rate': salary.pension_employee_rate
+                })
+            
+            # Populate micro business
+            for micro in example_profile.micro_business:
+                st.session_state.micro_inputs.append({
+                    'turnover': micro.turnover,
+                    'no_employees': micro.no_employees,
+                    'activity_allowed': micro.activity_allowed
+                })
+            
+            # Populate small business
+            for small in example_profile.small_business:
+                st.session_state.small_inputs.append({
+                    'turnover': small.turnover,
+                    'registered': small.registered
+                })
+            
+            # Populate rental
+            for rental in example_profile.rental:
+                st.session_state.rental_inputs.append({
+                    'monthly_rent': rental.monthly_rent,
+                    'months': rental.months,
+                    'special_5_percent': rental.special_5_percent
+                })
+            
+            # Populate capital gains
+            for cg in example_profile.capital_gains:
+                st.session_state.cg_inputs.append({
+                    'purchase_price': cg.purchase_price,
+                    'sale_price': cg.sale_price,
+                    'is_primary_residence': cg.is_primary_residence
+                })
+            
+            # Populate dividends
+            for div in example_profile.dividends:
+                st.session_state.dividends_inputs.append({
+                    'amount': div.amount
+                })
+            
+            # Populate interest
+            for interest in example_profile.interest:
+                st.session_state.interest_inputs.append({
+                    'amount': interest.amount
+                })
+            
+            # Populate property tax
+            for prop in example_profile.property_tax:
+                st.session_state.property_inputs.append({
+                    'family_income': prop.family_income,
+                    'properties': prop.properties
+                })
+            
+            # Update tax year and residency in session state
+            st.session_state.example_tax_year = example_profile.year
+            st.session_state.example_residency = "Resident" if example_profile.residency == ResidencyStatus.RESIDENT else "Non-resident"
+            
+            st.success(f"✓ Loaded: {example_data['name']}")
+            st.info(f"💡 {example_data['description']}")
+            # Clear the selected example to allow reloading
+            st.session_state.selected_example_profile = None
+            st.rerun()
+    
+    if selected_example != "None (Start Fresh)":
+        # Show profile description
+        for key, data in EXAMPLE_PROFILES.items():
+            if data["name"] == selected_example:
+                st.caption(f"**{data['description']}**")
+                break
+    
+    st.divider()
+    
+    # Tax year and residency (use example values if loaded)
+    tax_years = [2024, 2025, 2026, 2027, 2028]
+    default_year_idx = 1  # Default to 2025
+    
+    if 'example_tax_year' in st.session_state:
+        try:
+            default_year_idx = tax_years.index(st.session_state.example_tax_year)
+        except ValueError:
+            default_year_idx = 1
+    
+    tax_year = st.selectbox(
+        "Tax Year", 
+        tax_years, 
+        index=default_year_idx
+    )
+    
+    default_residency_idx = 0
+    if 'example_residency' in st.session_state:
+        default_residency_idx = 0 if st.session_state.example_residency == "Resident" else 1
+    
     residency = st.radio(
         "Residency Status",
         ["Resident", "Non-resident"],
-        index=0
+        index=default_residency_idx
     )
     
     st.divider()
@@ -44,14 +177,223 @@ with st.sidebar:
     st.caption("Currency: GEL (Georgian Lari)")
     
     st.divider()
+    
+    # Saved Profiles Section
+    st.subheader("💾 Saved Profiles")
+    st.caption("Save and load your profiles")
+    
+    # Initialize DB if needed
+    try:
+        init_db()
+    except Exception:
+        pass  # DB might already exist
+    
+    # Save current profile
+    with st.expander("💾 Save Current Profile", expanded=False):
+        profile_name = st.text_input(
+            "Profile Name",
+            key="save_profile_name",
+            placeholder="e.g., My Tax Profile 2025",
+            help="Enter a unique name for this profile"
+        )
+        profile_description = st.text_area(
+            "Description (optional)",
+            key="save_profile_desc",
+            placeholder="Brief description of this profile",
+            max_chars=200
+        )
+        
+        if st.button("💾 Save Profile", use_container_width=True, key="save_profile_btn"):
+            if not profile_name or not profile_name.strip():
+                st.error("Please enter a profile name")
+            else:
+                try:
+                    # Build profile from current inputs
+                    profile_to_save = UserProfile(
+                        year=tax_year,
+                        residency=ResidencyStatus.RESIDENT if residency == "Resident" else ResidencyStatus.NON_RESIDENT,
+                        salary=[SalaryIncome(
+                            monthly_gross=s.get('monthly_gross', 0),
+                            months=s.get('months', 0),
+                            pension_employee_rate=s.get('pension_rate', 0.02)
+                        ) for s in st.session_state.salary_inputs],
+                        micro_business=[MicroBusinessIncome(
+                            turnover=m.get('turnover', 0),
+                            no_employees=m.get('no_employees', False),
+                            activity_allowed=m.get('activity_allowed', False)
+                        ) for m in st.session_state.micro_inputs],
+                        small_business=[SmallBusinessIncome(
+                            turnover=s.get('turnover', 0),
+                            registered=s.get('registered', False)
+                        ) for s in st.session_state.small_inputs],
+                        rental=[RentalIncome(
+                            monthly_rent=r.get('monthly_rent', 0),
+                            months=r.get('months', 0),
+                            special_5_percent=r.get('special_5_percent', False)
+                        ) for r in st.session_state.rental_inputs],
+                        capital_gains=[CapitalGainsIncome(
+                            purchase_price=cg.get('purchase_price', 0),
+                            sale_price=cg.get('sale_price', 0),
+                            is_primary_residence=cg.get('is_primary_residence', False)
+                        ) for cg in st.session_state.cg_inputs],
+                        dividends=[DividendsIncome(amount=d.get('amount', 0)) for d in st.session_state.dividends_inputs],
+                        interest=[InterestIncome(amount=i.get('amount', 0)) for i in st.session_state.interest_inputs],
+                        property_tax=[PropertyTaxInput(
+                            family_income=p.get('family_income', 0),
+                            properties=p.get('properties', 0)
+                        ) for p in st.session_state.property_inputs]
+                    )
+                    
+                    save_profile(profile_name.strip(), profile_to_save, profile_description.strip())
+                    st.success(f"✓ Profile '{profile_name}' saved successfully!")
+                    st.rerun()
+                except Exception as e:
+                    log_app_error(e, user_action="Save Profile", profile_name=profile_name)
+                    st.error(f"Error saving profile: {str(e)}")
+    
+    # Load saved profiles
+    saved_profiles = list_profiles()
+    if saved_profiles:
+        with st.expander("📂 Load Saved Profile", expanded=False):
+            profile_names = [p["name"] for p in saved_profiles]
+            selected_saved = st.selectbox(
+                "Select Profile",
+                ["None"] + profile_names,
+                key="load_profile_select"
+            )
+            
+            if selected_saved != "None":
+                profile_info = get_profile_info(selected_saved)
+                if profile_info:
+                    st.caption(f"**Description:** {profile_info['description'] or 'No description'}")
+                    st.caption(f"**Updated:** {profile_info['updated_at']}")
+                    
+                    # Show income summary
+                    summary = profile_info['income_summary']
+                    income_types = []
+                    if summary['salary_count'] > 0:
+                        income_types.append(f"{summary['salary_count']} salary")
+                    if summary['micro_business_count'] > 0:
+                        income_types.append(f"{summary['micro_business_count']} micro")
+                    if summary['small_business_count'] > 0:
+                        income_types.append(f"{summary['small_business_count']} small")
+                    if summary['rental_count'] > 0:
+                        income_types.append(f"{summary['rental_count']} rental")
+                    if summary['capital_gains_count'] > 0:
+                        income_types.append(f"{summary['capital_gains_count']} CG")
+                    if summary['dividends_count'] > 0:
+                        income_types.append(f"{summary['dividends_count']} dividends")
+                    if summary['interest_count'] > 0:
+                        income_types.append(f"{summary['interest_count']} interest")
+                    if summary['property_tax_count'] > 0:
+                        income_types.append(f"{summary['property_tax_count']} property")
+                    
+                    if income_types:
+                        st.caption(f"**Income sources:** {', '.join(income_types)}")
+                
+                if st.button("📂 Load Profile", use_container_width=True, key="load_profile_btn"):
+                    try:
+                        loaded_profile = load_profile(selected_saved)
+                        if loaded_profile:
+                            # Clear existing inputs
+                            st.session_state.salary_inputs = []
+                            st.session_state.micro_inputs = []
+                            st.session_state.small_inputs = []
+                            st.session_state.rental_inputs = []
+                            st.session_state.cg_inputs = []
+                            st.session_state.dividends_inputs = []
+                            st.session_state.interest_inputs = []
+                            st.session_state.property_inputs = []
+                            
+                            # Populate from loaded profile
+                            for salary in loaded_profile.salary:
+                                st.session_state.salary_inputs.append({
+                                    'monthly_gross': salary.monthly_gross,
+                                    'months': salary.months,
+                                    'pension_rate': salary.pension_employee_rate
+                                })
+                            
+                            for micro in loaded_profile.micro_business:
+                                st.session_state.micro_inputs.append({
+                                    'turnover': micro.turnover,
+                                    'no_employees': micro.no_employees,
+                                    'activity_allowed': micro.activity_allowed
+                                })
+                            
+                            for small in loaded_profile.small_business:
+                                st.session_state.small_inputs.append({
+                                    'turnover': small.turnover,
+                                    'registered': small.registered
+                                })
+                            
+                            for rental in loaded_profile.rental:
+                                st.session_state.rental_inputs.append({
+                                    'monthly_rent': rental.monthly_rent,
+                                    'months': rental.months,
+                                    'special_5_percent': rental.special_5_percent
+                                })
+                            
+                            for cg in loaded_profile.capital_gains:
+                                st.session_state.cg_inputs.append({
+                                    'purchase_price': cg.purchase_price,
+                                    'sale_price': cg.sale_price,
+                                    'is_primary_residence': cg.is_primary_residence
+                                })
+                            
+                            for div in loaded_profile.dividends:
+                                st.session_state.dividends_inputs.append({
+                                    'amount': div.amount
+                                })
+                            
+                            for interest in loaded_profile.interest:
+                                st.session_state.interest_inputs.append({
+                                    'amount': interest.amount
+                                })
+                            
+                            for prop in loaded_profile.property_tax:
+                                st.session_state.property_inputs.append({
+                                    'family_income': prop.family_income,
+                                    'properties': prop.properties
+                                })
+                            
+                            # Update tax year and residency
+                            st.session_state.example_tax_year = loaded_profile.year
+                            st.session_state.example_residency = "Resident" if loaded_profile.residency == ResidencyStatus.RESIDENT else "Non-resident"
+                            
+                            st.success(f"✓ Loaded profile: {selected_saved}")
+                            st.rerun()
+                    except Exception as e:
+                        log_app_error(e, user_action="Load Profile", profile_name=selected_saved)
+                        st.error(f"Error loading profile: {str(e)}")
+        
+        # Manage profiles
+        with st.expander("🗑️ Manage Profiles", expanded=False):
+            for profile in saved_profiles[:5]:  # Show first 5
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.caption(f"**{profile['name']}**")
+                    if profile['description']:
+                        st.caption(profile['description'][:50] + "..." if len(profile['description']) > 50 else profile['description'])
+                with col2:
+                    if st.button("Delete", key=f"delete_{profile['name']}", use_container_width=True):
+                        try:
+                            if delete_profile(profile['name']):
+                                st.success(f"✓ Deleted: {profile['name']}")
+                                st.rerun()
+                            else:
+                                st.error("Profile not found")
+                        except Exception as e:
+                            log_app_error(e, user_action="Delete Profile", profile_name=profile['name'])
+                            st.error(f"Error deleting profile: {str(e)}")
+    
+    st.divider()
     st.caption("⚠️ **Disclaimer:**")
     st.caption("Unofficial calculator, may be outdated or simplified, not professional tax advice.")
     
     st.divider()
-    # Link to error logs page - use navigation
-    # Streamlit automatically creates navigation for pages in the pages/ directory
-    # Users can access it via the sidebar navigation menu
-    st.caption("📋 **Error Logs** available in sidebar navigation")
+    # Navigation links
+    st.caption("📚 **Tax Rules & Formulas** - See sidebar navigation")
+    st.caption("📋 **Error Logs** - See sidebar navigation")
 
 # Main content - Income Inputs
 st.header("Income Inputs")
@@ -417,14 +759,25 @@ with tab7:
 # Property Tax tab
 with tab8:
     st.subheader("Property Tax")
+    st.caption("ℹ️ Property tax is calculated separately based on family income threshold (65,000 GEL)")
+    
+    # Auto-calculate suggested family income from salary
+    suggested_family_income = 0.0
+    if st.session_state.salary_inputs:
+        total_salary = sum(s.get('monthly_gross', 0) * s.get('months', 0) for s in st.session_state.salary_inputs)
+        suggested_family_income = total_salary
     
     with st.expander("Add Property Tax Info", expanded=True):
+        if suggested_family_income > 0:
+            st.info(f"💡 **Tip:** Your total salary income is {suggested_family_income:,.0f} GEL. You can use this as a starting point for family income, or adjust if you have other family income sources.")
+        
         family_income = st.number_input(
             "Approximate Annual Family Income (GEL)",
             min_value=0.0,
-            value=65000.0,
+            value=suggested_family_income if suggested_family_income > 0 else 65000.0,
             step=1000.0,
-            key="property_income"
+            key="property_income",
+            help="Total annual family income. Property tax exemption threshold is 65,000 GEL."
         )
         properties = st.number_input(
             "Number of Properties",
@@ -450,7 +803,11 @@ with tab8:
         for idx, prop in enumerate(st.session_state.property_inputs):
             col1, col2 = st.columns([4, 1])
             with col1:
-                st.write(f"**Info {idx + 1}:** {prop['properties']} properties, {prop['family_income']:,.0f} GEL family income")
+                family_income = prop.get('family_income', 0)
+                properties = prop.get('properties', 0)
+                threshold = 65000.0
+                status = "⚠️ Exempt (below threshold)" if family_income <= threshold else "✓ Taxable (above threshold)"
+                st.write(f"**Info {idx + 1}:** {properties} properties, {family_income:,.0f} GEL family income - {status}")
             with col2:
                 if st.button("Remove", key=f"remove_property_{idx}"):
                     try:
@@ -460,6 +817,8 @@ with tab8:
                         log_app_error(e, user_action="Remove Property Tax Info", index=idx)
                         st.error(f"Error removing property tax info: {str(e)}")
                         st.rerun()
+    else:
+        st.info("💡 **No property tax info added yet.** Add your family income and number of properties above to calculate property tax.")
 
 # Results Section
 st.divider()

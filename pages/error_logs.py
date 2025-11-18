@@ -14,6 +14,9 @@ st.set_page_config(
 st.title("📋 Error Logs")
 st.caption("View and manage application error logs")
 
+# Add navigation hint
+st.info("💡 **Tip:** This page shows all errors that occur in the application. Errors are automatically logged when they happen.")
+
 # Get stats
 stats = logger.get_log_stats()
 

@@ -42,3 +42,9 @@ Thumbs.db
 # Project specific
 *.log
 
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+data/
+

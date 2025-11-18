@@ -7,7 +7,12 @@
 uv sync
 ```
 
-2. Run the Streamlit app:
+2. Initialize the database (for saving/loading profiles):
+```bash
+uv run python scripts/setup_db.py
+```
+
+3. Run the Streamlit app:
 ```bash
 uv run streamlit run app.py
 ```
@@ -35,6 +40,23 @@ The app will open in your browser at `http://localhost:8501`
 2. Add income sources using the tabs
 3. View results in the "Calculation Results" section
 4. Expand "Step-by-Step Calculations" to see detailed breakdowns
+
+### Saving and Loading Profiles
+
+You can save your current profile configuration for later use:
+
+1. Fill in your income sources
+2. Go to the sidebar → "💾 Saved Profiles" section
+3. Click "💾 Save Current Profile"
+4. Enter a name and optional description
+5. Click "💾 Save Profile"
+
+To load a saved profile:
+1. Go to "📂 Load Saved Profile" in the sidebar
+2. Select a profile from the dropdown
+3. Click "📂 Load Profile"
+
+Profiles are stored in `data/profiles.db` (SQLite database).
 
 ## Project Structure
 
