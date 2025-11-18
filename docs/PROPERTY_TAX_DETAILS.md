@@ -27,20 +27,17 @@ Property tax in Georgia is an annual tax levied on real estate and movable prope
 - Below threshold: **Property tax is exempt**
 
 #### Calculator Implementation
-- **⚠️ DISCREPANCY:** The calculator currently uses **65,000 GEL** as the threshold
-- This may be:
-  1. **Family income threshold** (combined household income) - if law distinguishes between individual and family income
-  2. **Outdated threshold** - if the law changed from 65,000 to 40,000 GEL
-  3. **Different interpretation** - if there's a different rule for certain property types
+- **✅ FIXED:** The calculator now defaults to **40,000 GEL** (RS.ge official threshold)
+- **Configurable:** Users can select:
+  1. **RS.ge Official (40,000 GEL)** - Default, for individual income
+  2. **Custom Threshold** - Users can set custom threshold (e.g., 65,000 GEL for family income if applicable)
+- **Verification:** Users are warned to verify with RS.ge which threshold applies to their situation
 
 ### Important Note
-**⚠️ CRITICAL VERIFICATION REQUIRED:** 
-- **Official threshold:** 40,000 GEL (per Georgian Tax Code and RS.ge)
-- **Calculator threshold:** 65,000 GEL (may need update)
-- **Action needed:** Verify with RS.ge whether:
-  1. Threshold is 40,000 GEL (individual) or 65,000 GEL (family)
-  2. Calculator should be updated to use 40,000 GEL threshold
-  3. Or if 65,000 GEL applies to a different scenario
+**✅ RESOLVED:** 
+- **Default threshold:** 40,000 GEL (RS.ge official - individual income)
+- **Custom threshold option:** Available for users who need different threshold (e.g., 65,000 GEL for family income)
+- **Action:** Users should verify with RS.ge which threshold applies to their specific situation
 
 ## Calculation Method
 
@@ -156,22 +153,24 @@ Where:
 ## Current Implementation in Calculator
 
 ### How It Works
-1. User enters property values (market value or purchase price)
-2. System calculates total property value
-3. System checks if family income exceeds threshold (65,000 GEL)
-4. If above threshold: Calculates tax as 1% of property value
-5. If below threshold: Tax = 0 (exempt)
+1. User selects income threshold (RS.ge official 40,000 GEL or custom)
+2. User enters property values (market value or purchase price)
+3. User sets property tax rate (default 1%, can be adjusted)
+4. System calculates total property value
+5. System checks if income exceeds selected threshold
+6. If above threshold: Calculates tax as (rate% × property value)
+7. If below threshold: Tax = 0 (exempt)
 
-### Assumptions
-- **Tax rate:** 1% (standard rate)
-- **Threshold:** 65,000 GEL family income
+### Current Features
+- **Tax rate:** User-configurable (default 1%, can be 0-2%)
+- **Threshold:** User-selectable (default: 40,000 GEL RS.ge official, or custom)
 - **Valuation:** Based on user-provided market value or purchase price
+- **Verification warnings:** Clear notices about threshold discrepancies
 
-### Limitations
-- Does not account for municipality-specific rates
-- Does not account for property type variations
+### Remaining Limitations
+- Does not account for property type variations (residential vs commercial vs agricultural)
 - Uses user-provided values (not RS.ge assessed values)
-- Threshold may need verification with current law
+- Users should verify threshold applicability with RS.ge
 
 ## Verification and Updates
 
