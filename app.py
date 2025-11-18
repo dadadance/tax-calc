@@ -767,13 +767,43 @@ with tab3:
     st.subheader("Small Business")
     
     with st.expander("Add Small Business", expanded=True):
-        turnover = st.number_input(
-            "Annual Turnover (GEL)",
-            min_value=0.0,
-            value=100000.0,
-            step=10000.0,
-            key="small_turnover"
+        input_mode = st.radio(
+            "Input Mode",
+            ["Monthly", "Annual"],
+            index=1,
+            horizontal=True,
+            key="small_input_mode",
+            help="Choose whether to input monthly or annual turnover"
         )
+        
+        if input_mode == "Monthly":
+            monthly_turnover = st.number_input(
+                "Monthly Turnover (GEL)",
+                min_value=0.0,
+                value=8333.33,
+                step=1000.0,
+                key="small_monthly_turnover"
+            )
+            months = st.number_input(
+                "Months",
+                min_value=1,
+                max_value=12,
+                value=12,
+                key="small_months"
+            )
+            turnover = monthly_turnover * months
+            st.caption(f"💡 Annual equivalent: {turnover:,.2f} GEL")
+        else:
+            turnover = st.number_input(
+                "Annual Turnover (GEL)",
+                min_value=0.0,
+                value=100000.0,
+                step=10000.0,
+                key="small_turnover"
+            )
+            monthly_turnover = turnover / 12
+            st.caption(f"💡 Monthly equivalent: {monthly_turnover:,.2f} GEL/month")
+        
         registered = st.checkbox("Registered as small business", value=True, key="small_registered")
         
         if st.button("Add Small Business", key="add_small"):
@@ -782,7 +812,10 @@ with tab3:
                     'turnover': turnover,
                     'registered': registered
                 })
-                st.success(f"Added small business: {turnover:,.0f} GEL turnover")
+                if input_mode == "Monthly":
+                    st.success(f"Added small business: {monthly_turnover:,.0f} GEL/month × {months} months = {turnover:,.0f} GEL/year")
+                else:
+                    st.success(f"Added small business: {turnover:,.0f} GEL turnover")
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Small Business", turnover=turnover)
@@ -859,20 +892,51 @@ with tab4:
     st.subheader("Residential Rental Income")
     
     with st.expander("Add Rental Property", expanded=True):
-        monthly_rent = st.number_input(
-            "Monthly Rent (GEL)",
-            min_value=0.0,
-            value=800.0,
-            step=50.0,
-            key="rental_monthly"
+        input_mode = st.radio(
+            "Input Mode",
+            ["Monthly", "Annual"],
+            index=0,
+            horizontal=True,
+            key="rental_input_mode",
+            help="Choose whether to input monthly or annual rent"
         )
-        months = st.number_input(
-            "Months Rented",
-            min_value=1,
-            max_value=12,
-            value=12,
-            key="rental_months"
-        )
+        
+        if input_mode == "Monthly":
+            monthly_rent = st.number_input(
+                "Monthly Rent (GEL)",
+                min_value=0.0,
+                value=800.0,
+                step=50.0,
+                key="rental_monthly"
+            )
+            months = st.number_input(
+                "Months Rented",
+                min_value=1,
+                max_value=12,
+                value=12,
+                key="rental_months"
+            )
+            annual_rent = monthly_rent * months
+            st.caption(f"💡 Annual equivalent: {annual_rent:,.2f} GEL")
+        else:
+            annual_rent_input = st.number_input(
+                "Annual Rent (GEL)",
+                min_value=0.0,
+                value=9600.0,
+                step=1000.0,
+                key="rental_annual"
+            )
+            months = st.number_input(
+                "Months Rented",
+                min_value=1,
+                max_value=12,
+                value=12,
+                key="rental_months_annual"
+            )
+            monthly_rent = annual_rent_input / months if months > 0 else 0
+            annual_rent = annual_rent_input
+            st.caption(f"💡 Monthly equivalent: {monthly_rent:,.2f} GEL/month")
+        
         special_5_percent = st.checkbox("Apply 5% special regime", value=True, key="rental_5pct")
         
         if st.button("Add Rental Property", key="add_rental"):
@@ -882,7 +946,10 @@ with tab4:
                     'months': int(months),
                     'special_5_percent': special_5_percent
                 })
-                st.success(f"Added rental property: {monthly_rent:,.0f} GEL/month × {months} months")
+                if input_mode == "Monthly":
+                    st.success(f"Added rental property: {monthly_rent:,.0f} GEL/month × {months} months")
+                else:
+                    st.success(f"Added rental property: {annual_rent:,.0f} GEL/year ({months} months)")
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Rental Property", monthly_rent=monthly_rent, months=months)
