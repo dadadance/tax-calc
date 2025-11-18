@@ -396,7 +396,25 @@ with st.sidebar:
     st.caption("📋 **Error Logs** - See sidebar navigation")
 
 # Main content - Income Inputs
-st.header("Income Inputs")
+col_header1, col_header2 = st.columns([4, 1])
+with col_header1:
+    st.header("Income Inputs")
+with col_header2:
+    if st.button("🗑️ Clear All", use_container_width=True, help="Remove all income inputs"):
+        try:
+            st.session_state.salary_inputs = []
+            st.session_state.micro_inputs = []
+            st.session_state.small_inputs = []
+            st.session_state.rental_inputs = []
+            st.session_state.cg_inputs = []
+            st.session_state.dividends_inputs = []
+            st.session_state.interest_inputs = []
+            st.session_state.property_inputs = []
+            st.success("✓ All inputs cleared")
+            st.rerun()
+        except Exception as e:
+            log_app_error(e, user_action="Clear All")
+            st.error(f"Error clearing inputs: {str(e)}")
 
 # Create tabs for different income types
 tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
@@ -471,18 +489,57 @@ with tab1:
     if st.session_state.salary_inputs:
         st.subheader("Current Salary Sources")
         for idx, sal in enumerate(st.session_state.salary_inputs):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.write(f"**Source {idx + 1}:** {sal['monthly_gross']:,.0f} GEL/month × {sal['months']} months")
-            with col2:
-                if st.button("Remove", key=f"remove_salary_{idx}"):
-                    try:
-                        st.session_state.salary_inputs.pop(idx)
-                        st.rerun()
-                    except (IndexError, KeyError) as e:
-                        log_app_error(e, user_action="Remove Salary Source", index=idx)
-                        st.error(f"Error removing salary source: {str(e)}")
-                        st.rerun()
+            with st.expander(f"Source {idx + 1}: {sal['monthly_gross']:,.0f} GEL/month × {sal['months']} months", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    edit_monthly = st.number_input(
+                        "Monthly Gross Salary (GEL)",
+                        min_value=0.0,
+                        value=sal['monthly_gross'],
+                        step=100.0,
+                        key=f"edit_salary_monthly_{idx}"
+                    )
+                with col2:
+                    edit_months = st.number_input(
+                        "Months Worked",
+                        min_value=1,
+                        max_value=12,
+                        value=sal['months'],
+                        key=f"edit_salary_months_{idx}"
+                    )
+                edit_pension = st.number_input(
+                    "Employee Pension Rate",
+                    min_value=0.0,
+                    max_value=0.1,
+                    value=sal.get('pension_rate', 0.02),
+                    step=0.01,
+                    format="%.2f",
+                    key=f"edit_salary_pension_{idx}"
+                )
+                
+                col_btn1, col_btn2, col_btn3 = st.columns([1, 1, 2])
+                with col_btn1:
+                    if st.button("✓ Update", key=f"update_salary_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.salary_inputs[idx] = {
+                                'monthly_gross': edit_monthly,
+                                'months': int(edit_months),
+                                'pension_rate': edit_pension
+                            }
+                            st.success("✓ Updated")
+                            st.rerun()
+                        except Exception as e:
+                            log_app_error(e, user_action="Update Salary Source", index=idx)
+                            st.error(f"Error updating: {str(e)}")
+                with col_btn2:
+                    if st.button("🗑️ Remove", key=f"remove_salary_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.salary_inputs.pop(idx)
+                            st.rerun()
+                        except (IndexError, KeyError) as e:
+                            log_app_error(e, user_action="Remove Salary Source", index=idx)
+                            st.error(f"Error removing salary source: {str(e)}")
+                            st.rerun()
 
 # Micro Business tab
 with tab2:
@@ -515,18 +572,40 @@ with tab2:
     if st.session_state.micro_inputs:
         st.subheader("Current Micro Businesses")
         for idx, micro in enumerate(st.session_state.micro_inputs):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.write(f"**Business {idx + 1}:** {micro['turnover']:,.0f} GEL turnover")
-            with col2:
-                if st.button("Remove", key=f"remove_micro_{idx}"):
-                    try:
-                        st.session_state.micro_inputs.pop(idx)
-                        st.rerun()
-                    except (IndexError, KeyError) as e:
-                        log_app_error(e, user_action="Remove Micro Business", index=idx)
-                        st.error(f"Error removing micro business: {str(e)}")
-                        st.rerun()
+            with st.expander(f"Business {idx + 1}: {micro['turnover']:,.0f} GEL turnover", expanded=False):
+                edit_turnover = st.number_input(
+                    "Annual Turnover (GEL)",
+                    min_value=0.0,
+                    value=micro['turnover'],
+                    step=1000.0,
+                    key=f"edit_micro_turnover_{idx}"
+                )
+                edit_no_employees = st.checkbox("No employees", value=micro.get('no_employees', True), key=f"edit_micro_no_employees_{idx}")
+                edit_activity = st.checkbox("Activity allowed for micro regime", value=micro.get('activity_allowed', True), key=f"edit_micro_activity_{idx}")
+                
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    if st.button("✓ Update", key=f"update_micro_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.micro_inputs[idx] = {
+                                'turnover': edit_turnover,
+                                'no_employees': edit_no_employees,
+                                'activity_allowed': edit_activity
+                            }
+                            st.success("✓ Updated")
+                            st.rerun()
+                        except Exception as e:
+                            log_app_error(e, user_action="Update Micro Business", index=idx)
+                            st.error(f"Error updating: {str(e)}")
+                with col_btn2:
+                    if st.button("🗑️ Remove", key=f"remove_micro_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.micro_inputs.pop(idx)
+                            st.rerun()
+                        except (IndexError, KeyError) as e:
+                            log_app_error(e, user_action="Remove Micro Business", index=idx)
+                            st.error(f"Error removing micro business: {str(e)}")
+                            st.rerun()
 
 # Small Business tab
 with tab3:
@@ -557,18 +636,38 @@ with tab3:
     if st.session_state.small_inputs:
         st.subheader("Current Small Businesses")
         for idx, small in enumerate(st.session_state.small_inputs):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.write(f"**Business {idx + 1}:** {small['turnover']:,.0f} GEL turnover")
-            with col2:
-                if st.button("Remove", key=f"remove_small_{idx}"):
-                    try:
-                        st.session_state.small_inputs.pop(idx)
-                        st.rerun()
-                    except (IndexError, KeyError) as e:
-                        log_app_error(e, user_action="Remove Small Business", index=idx)
-                        st.error(f"Error removing small business: {str(e)}")
-                        st.rerun()
+            with st.expander(f"Business {idx + 1}: {small['turnover']:,.0f} GEL turnover", expanded=False):
+                edit_turnover = st.number_input(
+                    "Annual Turnover (GEL)",
+                    min_value=0.0,
+                    value=small['turnover'],
+                    step=1000.0,
+                    key=f"edit_small_turnover_{idx}"
+                )
+                edit_registered = st.checkbox("Registered as small business", value=small.get('registered', False), key=f"edit_small_registered_{idx}")
+                
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    if st.button("✓ Update", key=f"update_small_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.small_inputs[idx] = {
+                                'turnover': edit_turnover,
+                                'registered': edit_registered
+                            }
+                            st.success("✓ Updated")
+                            st.rerun()
+                        except Exception as e:
+                            log_app_error(e, user_action="Update Small Business", index=idx)
+                            st.error(f"Error updating: {str(e)}")
+                with col_btn2:
+                    if st.button("🗑️ Remove", key=f"remove_small_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.small_inputs.pop(idx)
+                            st.rerun()
+                        except (IndexError, KeyError) as e:
+                            log_app_error(e, user_action="Remove Small Business", index=idx)
+                            st.error(f"Error removing small business: {str(e)}")
+                            st.rerun()
 
 # Rental tab
 with tab4:
@@ -607,18 +706,49 @@ with tab4:
     if st.session_state.rental_inputs:
         st.subheader("Current Rental Properties")
         for idx, rental in enumerate(st.session_state.rental_inputs):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.write(f"**Property {idx + 1}:** {rental['monthly_rent']:,.0f} GEL/month × {rental['months']} months")
-            with col2:
-                if st.button("Remove", key=f"remove_rental_{idx}"):
-                    try:
-                        st.session_state.rental_inputs.pop(idx)
-                        st.rerun()
-                    except (IndexError, KeyError) as e:
-                        log_app_error(e, user_action="Remove Rental Property", index=idx)
-                        st.error(f"Error removing rental property: {str(e)}")
-                        st.rerun()
+            with st.expander(f"Property {idx + 1}: {rental['monthly_rent']:,.0f} GEL/month × {rental['months']} months", expanded=False):
+                col1, col2 = st.columns(2)
+                with col1:
+                    edit_monthly_rent = st.number_input(
+                        "Monthly Rent (GEL)",
+                        min_value=0.0,
+                        value=rental['monthly_rent'],
+                        step=100.0,
+                        key=f"edit_rental_monthly_{idx}"
+                    )
+                with col2:
+                    edit_months = st.number_input(
+                        "Months",
+                        min_value=1,
+                        max_value=12,
+                        value=rental['months'],
+                        key=f"edit_rental_months_{idx}"
+                    )
+                edit_special = st.checkbox("5% special regime", value=rental.get('special_5_percent', False), key=f"edit_rental_special_{idx}")
+                
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    if st.button("✓ Update", key=f"update_rental_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.rental_inputs[idx] = {
+                                'monthly_rent': edit_monthly_rent,
+                                'months': int(edit_months),
+                                'special_5_percent': edit_special
+                            }
+                            st.success("✓ Updated")
+                            st.rerun()
+                        except Exception as e:
+                            log_app_error(e, user_action="Update Rental", index=idx)
+                            st.error(f"Error updating: {str(e)}")
+                with col_btn2:
+                    if st.button("🗑️ Remove", key=f"remove_rental_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.rental_inputs.pop(idx)
+                            st.rerun()
+                        except (IndexError, KeyError) as e:
+                            log_app_error(e, user_action="Remove Rental", index=idx)
+                            st.error(f"Error removing rental: {str(e)}")
+                            st.rerun()
 
 # Capital Gains tab
 with tab5:
@@ -658,23 +788,55 @@ with tab5:
     if st.session_state.cg_inputs:
         st.subheader("Current Capital Gains")
         for idx, cg in enumerate(st.session_state.cg_inputs):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                try:
-                    gain = cg.get('sale_price', 0) - cg.get('purchase_price', 0)
-                    st.write(f"**Transaction {idx + 1}:** {gain:,.0f} GEL gain")
-                except (KeyError, TypeError) as e:
-                    log_app_error(e, user_action="Display Capital Gain", index=idx, cg_data=cg)
-                    st.write(f"**Transaction {idx + 1}:** Error displaying gain")
-            with col2:
-                if st.button("Remove", key=f"remove_cg_{idx}"):
-                    try:
-                        st.session_state.cg_inputs.pop(idx)
-                        st.rerun()
-                    except (IndexError, KeyError) as e:
-                        log_app_error(e, user_action="Remove Capital Gain", index=idx)
-                        st.error(f"Error removing capital gain: {str(e)}")
-                        st.rerun()
+            try:
+                gain = cg.get('sale_price', 0) - cg.get('purchase_price', 0)
+                residence_note = " (Primary Residence - Exempt)" if cg.get('is_primary_residence', False) else ""
+                with st.expander(f"Transaction {idx + 1}: {gain:,.0f} GEL gain{residence_note}", expanded=False):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        edit_purchase = st.number_input(
+                            "Purchase Price (GEL)",
+                            min_value=0.0,
+                            value=cg.get('purchase_price', 0),
+                            step=1000.0,
+                            key=f"edit_cg_purchase_{idx}"
+                        )
+                    with col2:
+                        edit_sale = st.number_input(
+                            "Sale Price (GEL)",
+                            min_value=0.0,
+                            value=cg.get('sale_price', 0),
+                            step=1000.0,
+                            key=f"edit_cg_sale_{idx}"
+                        )
+                    edit_primary = st.checkbox("Primary residence (exempt)", value=cg.get('is_primary_residence', False), key=f"edit_cg_primary_{idx}")
+                    
+                    col_btn1, col_btn2 = st.columns([1, 1])
+                    with col_btn1:
+                        if st.button("✓ Update", key=f"update_cg_{idx}", use_container_width=True):
+                            try:
+                                st.session_state.cg_inputs[idx] = {
+                                    'purchase_price': edit_purchase,
+                                    'sale_price': edit_sale,
+                                    'is_primary_residence': edit_primary
+                                }
+                                st.success("✓ Updated")
+                                st.rerun()
+                            except Exception as e:
+                                log_app_error(e, user_action="Update Capital Gains", index=idx)
+                                st.error(f"Error updating: {str(e)}")
+                    with col_btn2:
+                        if st.button("🗑️ Remove", key=f"remove_cg_{idx}", use_container_width=True):
+                            try:
+                                st.session_state.cg_inputs.pop(idx)
+                                st.rerun()
+                            except (IndexError, KeyError) as e:
+                                log_app_error(e, user_action="Remove Capital Gains", index=idx)
+                                st.error(f"Error removing capital gains: {str(e)}")
+                                st.rerun()
+            except (KeyError, TypeError) as e:
+                log_app_error(e, user_action="Display Capital Gain", index=idx, cg_data=cg)
+                st.write(f"**Transaction {idx + 1}:** Error displaying gain")
 
 # Dividends tab
 with tab6:
@@ -703,18 +865,36 @@ with tab6:
     if st.session_state.dividends_inputs:
         st.subheader("Current Dividends")
         for idx, div in enumerate(st.session_state.dividends_inputs):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.write(f"**Dividends {idx + 1}:** {div['amount']:,.0f} GEL")
-            with col2:
-                if st.button("Remove", key=f"remove_dividends_{idx}"):
-                    try:
-                        st.session_state.dividends_inputs.pop(idx)
-                        st.rerun()
-                    except (IndexError, KeyError) as e:
-                        log_app_error(e, user_action="Remove Dividends", index=idx)
-                        st.error(f"Error removing dividends: {str(e)}")
-                        st.rerun()
+            with st.expander(f"Dividends {idx + 1}: {div['amount']:,.0f} GEL", expanded=False):
+                edit_amount = st.number_input(
+                    "Dividends Amount (GEL)",
+                    min_value=0.0,
+                    value=div['amount'],
+                    step=100.0,
+                    key=f"edit_dividends_amount_{idx}"
+                )
+                
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    if st.button("✓ Update", key=f"update_dividends_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.dividends_inputs[idx] = {
+                                'amount': edit_amount
+                            }
+                            st.success("✓ Updated")
+                            st.rerun()
+                        except Exception as e:
+                            log_app_error(e, user_action="Update Dividends", index=idx)
+                            st.error(f"Error updating: {str(e)}")
+                with col_btn2:
+                    if st.button("🗑️ Remove", key=f"remove_dividends_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.dividends_inputs.pop(idx)
+                            st.rerun()
+                        except (IndexError, KeyError) as e:
+                            log_app_error(e, user_action="Remove Dividends", index=idx)
+                            st.error(f"Error removing dividends: {str(e)}")
+                            st.rerun()
 
 # Interest tab
 with tab7:
@@ -743,18 +923,36 @@ with tab7:
     if st.session_state.interest_inputs:
         st.subheader("Current Interest")
         for idx, interest in enumerate(st.session_state.interest_inputs):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.write(f"**Interest {idx + 1}:** {interest['amount']:,.0f} GEL")
-            with col2:
-                if st.button("Remove", key=f"remove_interest_{idx}"):
-                    try:
-                        st.session_state.interest_inputs.pop(idx)
-                        st.rerun()
-                    except (IndexError, KeyError) as e:
-                        log_app_error(e, user_action="Remove Interest", index=idx)
-                        st.error(f"Error removing interest: {str(e)}")
-                        st.rerun()
+            with st.expander(f"Interest {idx + 1}: {interest['amount']:,.0f} GEL", expanded=False):
+                edit_amount = st.number_input(
+                    "Interest Amount (GEL)",
+                    min_value=0.0,
+                    value=interest['amount'],
+                    step=100.0,
+                    key=f"edit_interest_amount_{idx}"
+                )
+                
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    if st.button("✓ Update", key=f"update_interest_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.interest_inputs[idx] = {
+                                'amount': edit_amount
+                            }
+                            st.success("✓ Updated")
+                            st.rerun()
+                        except Exception as e:
+                            log_app_error(e, user_action="Update Interest", index=idx)
+                            st.error(f"Error updating: {str(e)}")
+                with col_btn2:
+                    if st.button("🗑️ Remove", key=f"remove_interest_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.interest_inputs.pop(idx)
+                            st.rerun()
+                        except (IndexError, KeyError) as e:
+                            log_app_error(e, user_action="Remove Interest", index=idx)
+                            st.error(f"Error removing interest: {str(e)}")
+                            st.rerun()
 
 # Property Tax tab
 with tab8:
@@ -801,22 +999,48 @@ with tab8:
     if st.session_state.property_inputs:
         st.subheader("Current Property Tax Info")
         for idx, prop in enumerate(st.session_state.property_inputs):
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                family_income = prop.get('family_income', 0)
-                properties = prop.get('properties', 0)
-                threshold = 65000.0
-                status = "⚠️ Exempt (below threshold)" if family_income <= threshold else "✓ Taxable (above threshold)"
-                st.write(f"**Info {idx + 1}:** {properties} properties, {family_income:,.0f} GEL family income - {status}")
-            with col2:
-                if st.button("Remove", key=f"remove_property_{idx}"):
-                    try:
-                        st.session_state.property_inputs.pop(idx)
-                        st.rerun()
-                    except (IndexError, KeyError) as e:
-                        log_app_error(e, user_action="Remove Property Tax Info", index=idx)
-                        st.error(f"Error removing property tax info: {str(e)}")
-                        st.rerun()
+            family_income = prop.get('family_income', 0)
+            properties = prop.get('properties', 0)
+            threshold = 65000.0
+            status = "⚠️ Exempt (below threshold)" if family_income <= threshold else "✓ Taxable (above threshold)"
+            with st.expander(f"Info {idx + 1}: {properties} properties, {family_income:,.0f} GEL family income - {status}", expanded=False):
+                edit_family_income = st.number_input(
+                    "Approximate Annual Family Income (GEL)",
+                    min_value=0.0,
+                    value=family_income,
+                    step=1000.0,
+                    key=f"edit_property_income_{idx}",
+                    help="Total annual family income. Property tax exemption threshold is 65,000 GEL."
+                )
+                edit_properties = st.number_input(
+                    "Number of Properties",
+                    min_value=0,
+                    value=properties,
+                    key=f"edit_property_count_{idx}"
+                )
+                
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    if st.button("✓ Update", key=f"update_property_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.property_inputs[idx] = {
+                                'family_income': edit_family_income,
+                                'properties': int(edit_properties)
+                            }
+                            st.success("✓ Updated")
+                            st.rerun()
+                        except Exception as e:
+                            log_app_error(e, user_action="Update Property Tax Info", index=idx)
+                            st.error(f"Error updating: {str(e)}")
+                with col_btn2:
+                    if st.button("🗑️ Remove", key=f"remove_property_{idx}", use_container_width=True):
+                        try:
+                            st.session_state.property_inputs.pop(idx)
+                            st.rerun()
+                        except (IndexError, KeyError) as e:
+                            log_app_error(e, user_action="Remove Property Tax Info", index=idx)
+                            st.error(f"Error removing property tax info: {str(e)}")
+                            st.rerun()
     else:
         st.info("💡 **No property tax info added yet.** Add your family income and number of properties above to calculate property tax.")
 
