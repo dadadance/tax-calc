@@ -47,6 +47,26 @@ with st.sidebar:
         help="Select an example profile to quickly populate the form with sample data"
     )
     
+    # Track previous selection to detect change to "None (Start Fresh)"
+    if 'previous_profile_selection' not in st.session_state:
+        st.session_state.previous_profile_selection = selected_example
+    
+    # If user switched to "None (Start Fresh)", clear all inputs
+    if selected_example == "None (Start Fresh)" and st.session_state.previous_profile_selection != "None (Start Fresh)":
+        st.session_state.salary_inputs = []
+        st.session_state.micro_inputs = []
+        st.session_state.small_inputs = []
+        st.session_state.rental_inputs = []
+        st.session_state.cg_inputs = []
+        st.session_state.dividends_inputs = []
+        st.session_state.interest_inputs = []
+        st.session_state.property_inputs = []
+        st.session_state.previous_profile_selection = selected_example
+        st.rerun()
+    
+    # Update previous selection
+    st.session_state.previous_profile_selection = selected_example
+    
     if selected_example != "None (Start Fresh)":
         # Find the profile key
         profile_key = None
@@ -133,8 +153,8 @@ with st.sidebar:
             
             st.success(f"✓ Loaded: {example_data['name']}")
             st.info(f"💡 {example_data['description']}")
-            # Clear the selected example to allow reloading
-            st.session_state.selected_example_profile = None
+            # Update previous selection
+            st.session_state.previous_profile_selection = selected_example
             st.rerun()
     
     if selected_example != "None (Start Fresh)":
