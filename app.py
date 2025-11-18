@@ -30,6 +30,13 @@ st.set_page_config(
 st.title("🇬🇪 Georgian Tax Calculator")
 st.subheader("For individuals – unofficial estimation tool")
 
+# General Notice
+st.info("""
+**ℹ️ Important Notes:**
+- **Property Tax:** Calculation is simplified and estimated. Actual property tax depends on property values, locations, types, and other factors. Consult RS.ge or a tax advisor for accurate calculation.
+- **All Calculations:** This is an unofficial estimation tool. Tax laws may change, and individual circumstances vary. Always consult with a qualified tax professional for official tax advice.
+""")
+
 # Sidebar - Profile & Settings
 with st.sidebar:
     st.header("Profile & Settings")
@@ -1348,10 +1355,12 @@ try:
         # Show summary of income sources
         st.caption(f"📊 **Total Income Sources:** {len([r for r in sorted_regimes if r.tax > 0])} regime(s) with taxable income")
         
-        # Warnings
+        # Warnings (excluding property tax warnings - shown as general notice at top)
         all_warnings = []
         for regime in sorted_regimes:
-            all_warnings.extend(regime.warnings)
+            # Filter out property tax warnings - they're shown as general notice at top
+            if regime.regime_id != "property_tax":
+                all_warnings.extend(regime.warnings)
         
         if all_warnings:
             st.warning("⚠️ **Warnings:**")

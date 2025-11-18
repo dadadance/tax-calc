@@ -410,7 +410,7 @@ def calculate_property_tax(property_inputs: List[PropertyTaxInput]) -> RegimeRes
                 result=0.0,
                 legal_ref="RS.ge - Property Tax (Threshold Exemption)"
             ))
-            warnings.append(f"Property set {idx + 1}: Exempt from property tax (family income below {threshold:,.0f} GEL threshold)")
+                    # Warning removed - exemption status shown in UI
         else:
             # Simplified property tax calculation
             # Basic estimate: property tax typically ranges from 0.5% to 1.5% of property value
@@ -443,23 +443,12 @@ def calculate_property_tax(property_inputs: List[PropertyTaxInput]) -> RegimeRes
             ))
             
             total_tax += estimated_tax
-            warnings.append(
-                f"Property set {idx + 1}: Property tax is estimated. "
-                f"Actual tax depends on property values, locations, and types. "
-                f"Consult RS.ge or a tax advisor for accurate calculation."
-            )
-    
-    if not warnings:
-        warnings = []
-    else:
-        # Add general warning
-        warnings.insert(0, "Property tax calculation is simplified. Actual tax depends on property values, locations, and types.")
     
     return RegimeResult(
         regime_id="property_tax",
         tax=total_tax,
         steps=steps,
-        warnings=warnings
+        warnings=[]  # Warnings removed - shown as general notice at top of site
     )
 
 
