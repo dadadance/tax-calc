@@ -638,13 +638,43 @@ with tab2:
     st.subheader("Micro Business")
     
     with st.expander("Add Micro Business", expanded=True):
-        turnover = st.number_input(
-            "Annual Turnover (GEL)",
-            min_value=0.0,
-            value=25000.0,
-            step=1000.0,
-            key="micro_turnover"
+        input_mode = st.radio(
+            "Input Mode",
+            ["Monthly", "Annual"],
+            index=1,
+            horizontal=True,
+            key="micro_input_mode",
+            help="Choose whether to input monthly or annual turnover"
         )
+        
+        if input_mode == "Monthly":
+            monthly_turnover = st.number_input(
+                "Monthly Turnover (GEL)",
+                min_value=0.0,
+                value=2083.33,
+                step=100.0,
+                key="micro_monthly_turnover"
+            )
+            months = st.number_input(
+                "Months",
+                min_value=1,
+                max_value=12,
+                value=12,
+                key="micro_months"
+            )
+            turnover = monthly_turnover * months
+            st.caption(f"💡 Annual equivalent: {turnover:,.2f} GEL")
+        else:
+            turnover = st.number_input(
+                "Annual Turnover (GEL)",
+                min_value=0.0,
+                value=25000.0,
+                step=1000.0,
+                key="micro_turnover"
+            )
+            monthly_turnover = turnover / 12
+            st.caption(f"💡 Monthly equivalent: {monthly_turnover:,.2f} GEL/month")
+        
         no_employees = st.checkbox("No employees", value=True, key="micro_no_employees")
         activity_allowed = st.checkbox("Activity allowed for micro regime", value=True, key="micro_activity")
         
@@ -655,7 +685,10 @@ with tab2:
                     'no_employees': no_employees,
                     'activity_allowed': activity_allowed
                 })
-                st.success(f"Added micro business: {turnover:,.0f} GEL turnover")
+                if input_mode == "Monthly":
+                    st.success(f"Added micro business: {monthly_turnover:,.0f} GEL/month × {months} months = {turnover:,.0f} GEL/year")
+                else:
+                    st.success(f"Added micro business: {turnover:,.0f} GEL turnover")
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Micro Business", turnover=turnover)
@@ -664,14 +697,44 @@ with tab2:
     if st.session_state.micro_inputs:
         st.subheader("Current Micro Businesses")
         for idx, micro in enumerate(st.session_state.micro_inputs):
-            with st.expander(f"Business {idx + 1}: {micro['turnover']:,.0f} GEL turnover", expanded=False):
-                edit_turnover = st.number_input(
-                    "Annual Turnover (GEL)",
-                    min_value=0.0,
-                    value=micro['turnover'],
-                    step=1000.0,
-                    key=f"edit_micro_turnover_{idx}"
+            monthly_equiv = micro['turnover'] / 12
+            with st.expander(f"Business {idx + 1}: {micro['turnover']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)", expanded=False):
+                edit_input_mode = st.radio(
+                    "Input Mode",
+                    ["Monthly", "Annual"],
+                    index=1,
+                    horizontal=True,
+                    key=f"edit_micro_mode_{idx}",
+                    help="Choose whether to input monthly or annual turnover"
                 )
+                
+                if edit_input_mode == "Monthly":
+                    edit_monthly = st.number_input(
+                        "Monthly Turnover (GEL)",
+                        min_value=0.0,
+                        value=micro['turnover'] / 12,
+                        step=100.0,
+                        key=f"edit_micro_monthly_{idx}"
+                    )
+                    edit_months = st.number_input(
+                        "Months",
+                        min_value=1,
+                        max_value=12,
+                        value=12,
+                        key=f"edit_micro_months_{idx}"
+                    )
+                    edit_turnover = edit_monthly * edit_months
+                    st.caption(f"💡 Annual equivalent: {edit_turnover:,.2f} GEL")
+                else:
+                    edit_turnover = st.number_input(
+                        "Annual Turnover (GEL)",
+                        min_value=0.0,
+                        value=micro['turnover'],
+                        step=1000.0,
+                        key=f"edit_micro_turnover_{idx}"
+                    )
+                    st.caption(f"💡 Monthly equivalent: {edit_turnover / 12:,.2f} GEL/month")
+                
                 edit_no_employees = st.checkbox("No employees", value=micro.get('no_employees', True), key=f"edit_micro_no_employees_{idx}")
                 edit_activity = st.checkbox("Activity allowed for micro regime", value=micro.get('activity_allowed', True), key=f"edit_micro_activity_{idx}")
                 
@@ -728,14 +791,44 @@ with tab3:
     if st.session_state.small_inputs:
         st.subheader("Current Small Businesses")
         for idx, small in enumerate(st.session_state.small_inputs):
-            with st.expander(f"Business {idx + 1}: {small['turnover']:,.0f} GEL turnover", expanded=False):
-                edit_turnover = st.number_input(
-                    "Annual Turnover (GEL)",
-                    min_value=0.0,
-                    value=small['turnover'],
-                    step=1000.0,
-                    key=f"edit_small_turnover_{idx}"
+            monthly_equiv = small['turnover'] / 12
+            with st.expander(f"Business {idx + 1}: {small['turnover']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)", expanded=False):
+                edit_input_mode = st.radio(
+                    "Input Mode",
+                    ["Monthly", "Annual"],
+                    index=1,
+                    horizontal=True,
+                    key=f"edit_small_mode_{idx}",
+                    help="Choose whether to input monthly or annual turnover"
                 )
+                
+                if edit_input_mode == "Monthly":
+                    edit_monthly = st.number_input(
+                        "Monthly Turnover (GEL)",
+                        min_value=0.0,
+                        value=small['turnover'] / 12,
+                        step=1000.0,
+                        key=f"edit_small_monthly_{idx}"
+                    )
+                    edit_months = st.number_input(
+                        "Months",
+                        min_value=1,
+                        max_value=12,
+                        value=12,
+                        key=f"edit_small_months_{idx}"
+                    )
+                    edit_turnover = edit_monthly * edit_months
+                    st.caption(f"💡 Annual equivalent: {edit_turnover:,.2f} GEL")
+                else:
+                    edit_turnover = st.number_input(
+                        "Annual Turnover (GEL)",
+                        min_value=0.0,
+                        value=small['turnover'],
+                        step=1000.0,
+                        key=f"edit_small_turnover_{idx}"
+                    )
+                    st.caption(f"💡 Monthly equivalent: {edit_turnover / 12:,.2f} GEL/month")
+                
                 edit_registered = st.checkbox("Registered as small business", value=small.get('registered', False), key=f"edit_small_registered_{idx}")
                 
                 col_btn1, col_btn2 = st.columns([1, 1])
@@ -798,24 +891,55 @@ with tab4:
     if st.session_state.rental_inputs:
         st.subheader("Current Rental Properties")
         for idx, rental in enumerate(st.session_state.rental_inputs):
-            with st.expander(f"Property {idx + 1}: {rental['monthly_rent']:,.0f} GEL/month × {rental['months']} months", expanded=False):
-                col1, col2 = st.columns(2)
-                with col1:
-                    edit_monthly_rent = st.number_input(
-                        "Monthly Rent (GEL)",
+            annual_equiv = rental['monthly_rent'] * rental['months']
+            with st.expander(f"Property {idx + 1}: {rental['monthly_rent']:,.0f} GEL/month × {rental['months']} months ({annual_equiv:,.0f} GEL/year)", expanded=False):
+                edit_input_mode = st.radio(
+                    "Input Mode",
+                    ["Monthly", "Annual"],
+                    index=0,
+                    horizontal=True,
+                    key=f"edit_rental_mode_{idx}",
+                    help="Choose whether to input monthly or annual rent"
+                )
+                
+                if edit_input_mode == "Monthly":
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        edit_monthly_rent = st.number_input(
+                            "Monthly Rent (GEL)",
+                            min_value=0.0,
+                            value=rental['monthly_rent'],
+                            step=100.0,
+                            key=f"edit_rental_monthly_{idx}"
+                        )
+                    with col2:
+                        edit_months = st.number_input(
+                            "Months",
+                            min_value=1,
+                            max_value=12,
+                            value=rental['months'],
+                            key=f"edit_rental_months_{idx}"
+                        )
+                    edit_annual_equiv = edit_monthly_rent * edit_months
+                    st.caption(f"💡 Annual equivalent: {edit_annual_equiv:,.2f} GEL")
+                else:
+                    edit_annual_rent = st.number_input(
+                        "Annual Rent (GEL)",
                         min_value=0.0,
-                        value=rental['monthly_rent'],
-                        step=100.0,
-                        key=f"edit_rental_monthly_{idx}"
+                        value=rental['monthly_rent'] * rental['months'],
+                        step=1000.0,
+                        key=f"edit_rental_annual_{idx}"
                     )
-                with col2:
                     edit_months = st.number_input(
                         "Months",
                         min_value=1,
                         max_value=12,
                         value=rental['months'],
-                        key=f"edit_rental_months_{idx}"
+                        key=f"edit_rental_months_annual_{idx}"
                     )
+                    edit_monthly_rent = edit_annual_rent / edit_months if edit_months > 0 else 0
+                    st.caption(f"💡 Monthly equivalent: {edit_monthly_rent:,.2f} GEL/month")
+                
                 edit_special = st.checkbox("5% special regime", value=rental.get('special_5_percent', False), key=f"edit_rental_special_{idx}")
                 
                 col_btn1, col_btn2 = st.columns([1, 1])
@@ -935,20 +1059,52 @@ with tab6:
     st.subheader("Dividends Income")
     
     with st.expander("Add Dividends", expanded=True):
-        amount = st.number_input(
-            "Dividends Amount (GEL)",
-            min_value=0.0,
-            value=5000.0,
-            step=100.0,
-            key="dividends_amount"
+        input_mode = st.radio(
+            "Input Mode",
+            ["Monthly", "Annual"],
+            index=1,
+            horizontal=True,
+            key="dividends_input_mode",
+            help="Choose whether to input monthly or annual dividends"
         )
+        
+        if input_mode == "Monthly":
+            monthly_amount = st.number_input(
+                "Monthly Dividends (GEL)",
+                min_value=0.0,
+                value=416.67,
+                step=50.0,
+                key="dividends_monthly"
+            )
+            months = st.number_input(
+                "Months",
+                min_value=1,
+                max_value=12,
+                value=12,
+                key="dividends_months"
+            )
+            amount = monthly_amount * months
+            st.caption(f"💡 Annual equivalent: {amount:,.2f} GEL")
+        else:
+            amount = st.number_input(
+                "Annual Dividends (GEL)",
+                min_value=0.0,
+                value=5000.0,
+                step=100.0,
+                key="dividends_amount"
+            )
+            monthly_amount = amount / 12
+            st.caption(f"💡 Monthly equivalent: {monthly_amount:,.2f} GEL/month")
         
         if st.button("Add Dividends", key="add_dividends"):
             try:
                 st.session_state.dividends_inputs.append({
                     'amount': amount
                 })
-                st.success(f"Added dividends: {amount:,.0f} GEL")
+                if input_mode == "Monthly":
+                    st.success(f"Added dividends: {monthly_amount:,.0f} GEL/month × {months} months = {amount:,.0f} GEL/year")
+                else:
+                    st.success(f"Added dividends: {amount:,.0f} GEL")
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Dividends", amount=amount)
@@ -957,14 +1113,43 @@ with tab6:
     if st.session_state.dividends_inputs:
         st.subheader("Current Dividends")
         for idx, div in enumerate(st.session_state.dividends_inputs):
-            with st.expander(f"Dividends {idx + 1}: {div['amount']:,.0f} GEL", expanded=False):
-                edit_amount = st.number_input(
-                    "Dividends Amount (GEL)",
-                    min_value=0.0,
-                    value=div['amount'],
-                    step=100.0,
-                    key=f"edit_dividends_amount_{idx}"
+            monthly_equiv = div['amount'] / 12
+            with st.expander(f"Dividends {idx + 1}: {div['amount']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)", expanded=False):
+                edit_input_mode = st.radio(
+                    "Input Mode",
+                    ["Monthly", "Annual"],
+                    index=1,
+                    horizontal=True,
+                    key=f"edit_dividends_mode_{idx}",
+                    help="Choose whether to input monthly or annual dividends"
                 )
+                
+                if edit_input_mode == "Monthly":
+                    edit_monthly = st.number_input(
+                        "Monthly Dividends (GEL)",
+                        min_value=0.0,
+                        value=div['amount'] / 12,
+                        step=50.0,
+                        key=f"edit_dividends_monthly_{idx}"
+                    )
+                    edit_months = st.number_input(
+                        "Months",
+                        min_value=1,
+                        max_value=12,
+                        value=12,
+                        key=f"edit_dividends_months_{idx}"
+                    )
+                    edit_amount = edit_monthly * edit_months
+                    st.caption(f"💡 Annual equivalent: {edit_amount:,.2f} GEL")
+                else:
+                    edit_amount = st.number_input(
+                        "Annual Dividends (GEL)",
+                        min_value=0.0,
+                        value=div['amount'],
+                        step=100.0,
+                        key=f"edit_dividends_amount_{idx}"
+                    )
+                    st.caption(f"💡 Monthly equivalent: {edit_amount / 12:,.2f} GEL/month")
                 
                 col_btn1, col_btn2 = st.columns([1, 1])
                 with col_btn1:
@@ -993,20 +1178,52 @@ with tab7:
     st.subheader("Interest Income")
     
     with st.expander("Add Interest", expanded=True):
-        amount = st.number_input(
-            "Interest Amount (GEL)",
-            min_value=0.0,
-            value=1000.0,
-            step=100.0,
-            key="interest_amount"
+        input_mode = st.radio(
+            "Input Mode",
+            ["Monthly", "Annual"],
+            index=1,
+            horizontal=True,
+            key="interest_input_mode",
+            help="Choose whether to input monthly or annual interest"
         )
+        
+        if input_mode == "Monthly":
+            monthly_amount = st.number_input(
+                "Monthly Interest (GEL)",
+                min_value=0.0,
+                value=83.33,
+                step=50.0,
+                key="interest_monthly"
+            )
+            months = st.number_input(
+                "Months",
+                min_value=1,
+                max_value=12,
+                value=12,
+                key="interest_months"
+            )
+            amount = monthly_amount * months
+            st.caption(f"💡 Annual equivalent: {amount:,.2f} GEL")
+        else:
+            amount = st.number_input(
+                "Annual Interest (GEL)",
+                min_value=0.0,
+                value=1000.0,
+                step=100.0,
+                key="interest_amount"
+            )
+            monthly_amount = amount / 12
+            st.caption(f"💡 Monthly equivalent: {monthly_amount:,.2f} GEL/month")
         
         if st.button("Add Interest", key="add_interest"):
             try:
                 st.session_state.interest_inputs.append({
                     'amount': amount
                 })
-                st.success(f"Added interest: {amount:,.0f} GEL")
+                if input_mode == "Monthly":
+                    st.success(f"Added interest: {monthly_amount:,.0f} GEL/month × {months} months = {amount:,.0f} GEL/year")
+                else:
+                    st.success(f"Added interest: {amount:,.0f} GEL")
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Interest", amount=amount)
@@ -1015,14 +1232,43 @@ with tab7:
     if st.session_state.interest_inputs:
         st.subheader("Current Interest")
         for idx, interest in enumerate(st.session_state.interest_inputs):
-            with st.expander(f"Interest {idx + 1}: {interest['amount']:,.0f} GEL", expanded=False):
-                edit_amount = st.number_input(
-                    "Interest Amount (GEL)",
-                    min_value=0.0,
-                    value=interest['amount'],
-                    step=100.0,
-                    key=f"edit_interest_amount_{idx}"
+            monthly_equiv = interest['amount'] / 12
+            with st.expander(f"Interest {idx + 1}: {interest['amount']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)", expanded=False):
+                edit_input_mode = st.radio(
+                    "Input Mode",
+                    ["Monthly", "Annual"],
+                    index=1,
+                    horizontal=True,
+                    key=f"edit_interest_mode_{idx}",
+                    help="Choose whether to input monthly or annual interest"
                 )
+                
+                if edit_input_mode == "Monthly":
+                    edit_monthly = st.number_input(
+                        "Monthly Interest (GEL)",
+                        min_value=0.0,
+                        value=interest['amount'] / 12,
+                        step=50.0,
+                        key=f"edit_interest_monthly_{idx}"
+                    )
+                    edit_months = st.number_input(
+                        "Months",
+                        min_value=1,
+                        max_value=12,
+                        value=12,
+                        key=f"edit_interest_months_{idx}"
+                    )
+                    edit_amount = edit_monthly * edit_months
+                    st.caption(f"💡 Annual equivalent: {edit_amount:,.2f} GEL")
+                else:
+                    edit_amount = st.number_input(
+                        "Annual Interest (GEL)",
+                        min_value=0.0,
+                        value=interest['amount'],
+                        step=100.0,
+                        key=f"edit_interest_amount_{idx}"
+                    )
+                    st.caption(f"💡 Monthly equivalent: {edit_amount / 12:,.2f} GEL/month")
                 
                 col_btn1, col_btn2 = st.columns([1, 1])
                 with col_btn1:
