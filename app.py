@@ -974,29 +974,84 @@ with tab7:
                             st.error(f"Error removing interest: {str(e)}")
                             st.rerun()
 
+# Helper function to calculate total income from all sources
+def calculate_total_family_income():
+    """Calculate total family income from all entered sources."""
+    total = 0.0
+    
+    # Salary income
+    for s in st.session_state.salary_inputs:
+        total += s.get('monthly_gross', 0) * s.get('months', 0)
+    
+    # Micro business turnover
+    for m in st.session_state.micro_inputs:
+        total += m.get('turnover', 0)
+    
+    # Small business turnover
+    for s in st.session_state.small_inputs:
+        total += s.get('turnover', 0)
+    
+    # Rental income
+    for r in st.session_state.rental_inputs:
+        total += r.get('monthly_rent', 0) * r.get('months', 0)
+    
+    # Capital gains (only gains, not total sale price)
+    for cg in st.session_state.cg_inputs:
+        sale = cg.get('sale_price', 0)
+        purchase = cg.get('purchase_price', 0)
+        if sale > purchase:
+            total += sale - purchase
+    
+    # Dividends
+    for d in st.session_state.dividends_inputs:
+        total += d.get('amount', 0)
+    
+    # Interest
+    for i in st.session_state.interest_inputs:
+        total += i.get('amount', 0)
+    
+    return total
+
 # Property Tax tab
 with tab8:
     st.subheader("Property Tax")
-    st.caption("ℹ️ Property tax is calculated separately based on family income threshold (65,000 GEL)")
+    st.caption("ℹ️ Property tax is calculated based on family income threshold (65,000 GEL)")
     
-    # Auto-calculate suggested family income from salary
-    suggested_family_income = 0.0
-    if st.session_state.salary_inputs:
-        total_salary = sum(s.get('monthly_gross', 0) * s.get('months', 0) for s in st.session_state.salary_inputs)
-        suggested_family_income = total_salary
+    # Auto-calculate total family income from all sources
+    calculated_family_income = calculate_total_family_income()
+    
+    # Show calculated income summary
+    if calculated_family_income > 0:
+        st.info(f"💰 **Auto-calculated Family Income:** {calculated_family_income:,.2f} GEL (from all income sources)")
+        threshold = 65000.0
+        if calculated_family_income > threshold:
+            st.success(f"✓ Your family income ({calculated_family_income:,.2f} GEL) exceeds the threshold ({threshold:,.0f} GEL). Property tax will apply.")
+        else:
+            st.warning(f"⚠️ Your family income ({calculated_family_income:,.2f} GEL) is below the threshold ({threshold:,.0f} GEL). You may be exempt from property tax.")
     
     with st.expander("Add Property Tax Info", expanded=True):
-        if suggested_family_income > 0:
-            st.info(f"💡 **Tip:** Your total salary income is {suggested_family_income:,.0f} GEL. You can use this as a starting point for family income, or adjust if you have other family income sources.")
+        st.caption("💡 **Note:** Family income is automatically calculated from all your income sources above. You can override it below if needed (e.g., if you have other family members' income not entered).")
         
-        family_income = st.number_input(
-            "Approximate Annual Family Income (GEL)",
-            min_value=0.0,
-            value=suggested_family_income if suggested_family_income > 0 else 65000.0,
-            step=1000.0,
-            key="property_income",
-            help="Total annual family income. Property tax exemption threshold is 65,000 GEL."
+        use_calculated = st.checkbox(
+            "Use auto-calculated family income",
+            value=True,
+            key="use_calculated_income",
+            help="Use the total income calculated from all entered sources"
         )
+        
+        if use_calculated:
+            family_income = calculated_family_income
+            st.caption(f"**Using calculated income:** {family_income:,.2f} GEL")
+        else:
+            family_income = st.number_input(
+                "Manual Family Income Override (GEL)",
+                min_value=0.0,
+                value=calculated_family_income if calculated_family_income > 0 else 65000.0,
+                step=1000.0,
+                key="property_income_manual",
+                help="Override the calculated income if you have additional family income sources not entered above"
+            )
+        
         properties = st.number_input(
             "Number of Properties",
             min_value=0,
@@ -1008,7 +1063,8 @@ with tab8:
             try:
                 st.session_state.property_inputs.append({
                     'family_income': family_income,
-                    'properties': int(properties)
+                    'properties': int(properties),
+                    'use_calculated': use_calculated
                 })
                 st.success(f"Added property tax info: {properties} properties")
                 st.rerun()
@@ -1019,19 +1075,38 @@ with tab8:
     if st.session_state.property_inputs:
         st.subheader("Current Property Tax Info")
         for idx, prop in enumerate(st.session_state.property_inputs):
-            family_income = prop.get('family_income', 0)
+            # Use calculated income if it's set to auto-update
+            if prop.get('use_calculated', False):
+                current_family_income = calculated_family_income
+            else:
+                current_family_income = prop.get('family_income', 0)
+            
             properties = prop.get('properties', 0)
             threshold = 65000.0
-            status = "⚠️ Exempt (below threshold)" if family_income <= threshold else "✓ Taxable (above threshold)"
-            with st.expander(f"Info {idx + 1}: {properties} properties, {family_income:,.0f} GEL family income - {status}", expanded=False):
-                edit_family_income = st.number_input(
-                    "Approximate Annual Family Income (GEL)",
-                    min_value=0.0,
-                    value=family_income,
-                    step=1000.0,
-                    key=f"edit_property_income_{idx}",
-                    help="Total annual family income. Property tax exemption threshold is 65,000 GEL."
+            status = "⚠️ Exempt (below threshold)" if current_family_income <= threshold else "✓ Taxable (above threshold)"
+            
+            income_source_note = " (auto-calculated)" if prop.get('use_calculated', False) else " (manual)"
+            with st.expander(f"Info {idx + 1}: {properties} properties, {current_family_income:,.0f} GEL family income{income_source_note} - {status}", expanded=False):
+                use_calculated_edit = st.checkbox(
+                    "Use auto-calculated family income",
+                    value=prop.get('use_calculated', False),
+                    key=f"edit_use_calculated_{idx}",
+                    help="Automatically use total income from all sources"
                 )
+                
+                if use_calculated_edit:
+                    edit_family_income = calculated_family_income
+                    st.caption(f"**Using calculated income:** {edit_family_income:,.2f} GEL")
+                else:
+                    edit_family_income = st.number_input(
+                        "Manual Family Income Override (GEL)",
+                        min_value=0.0,
+                        value=prop.get('family_income', calculated_family_income),
+                        step=1000.0,
+                        key=f"edit_property_income_{idx}",
+                        help="Override the calculated income if needed"
+                    )
+                
                 edit_properties = st.number_input(
                     "Number of Properties",
                     min_value=0,
@@ -1045,7 +1120,8 @@ with tab8:
                         try:
                             st.session_state.property_inputs[idx] = {
                                 'family_income': edit_family_income,
-                                'properties': int(edit_properties)
+                                'properties': int(edit_properties),
+                                'use_calculated': use_calculated_edit
                             }
                             st.success("✓ Updated")
                             st.rerun()
@@ -1062,7 +1138,136 @@ with tab8:
                             st.error(f"Error removing property tax info: {str(e)}")
                             st.rerun()
     else:
-        st.info("💡 **No property tax info added yet.** Add your family income and number of properties above to calculate property tax.")
+        if calculated_family_income > 0:
+            st.info(f"💡 **Tip:** Your calculated family income is {calculated_family_income:,.2f} GEL. Add property information above to calculate property tax.")
+        else:
+            st.info("💡 **No property tax info added yet.** Add your income sources in other tabs, then add property information here to calculate property tax.")
+
+# Summary Section - Show all entered data
+st.divider()
+st.header("📊 Income Summary")
+st.caption("Overview of all entered income sources")
+
+total_calculated_income = calculate_total_family_income()
+
+if total_calculated_income > 0 or any([
+    st.session_state.salary_inputs,
+    st.session_state.micro_inputs,
+    st.session_state.small_inputs,
+    st.session_state.rental_inputs,
+    st.session_state.cg_inputs,
+    st.session_state.dividends_inputs,
+    st.session_state.interest_inputs,
+    st.session_state.property_inputs
+]):
+    summary_cols = st.columns(4)
+    
+    with summary_cols[0]:
+        salary_total = sum(s.get('monthly_gross', 0) * s.get('months', 0) for s in st.session_state.salary_inputs)
+        st.metric("Salary Income", f"{salary_total:,.2f} GEL", delta=f"{len(st.session_state.salary_inputs)} source(s)")
+    
+    with summary_cols[1]:
+        business_total = (
+            sum(m.get('turnover', 0) for m in st.session_state.micro_inputs) +
+            sum(s.get('turnover', 0) for s in st.session_state.small_inputs)
+        )
+        business_count = len(st.session_state.micro_inputs) + len(st.session_state.small_inputs)
+        st.metric("Business Income", f"{business_total:,.2f} GEL", delta=f"{business_count} business(es)")
+    
+    with summary_cols[2]:
+        rental_total = sum(r.get('monthly_rent', 0) * r.get('months', 0) for r in st.session_state.rental_inputs)
+        st.metric("Rental Income", f"{rental_total:,.2f} GEL", delta=f"{len(st.session_state.rental_inputs)} property(ies)")
+    
+    with summary_cols[3]:
+        investment_total = (
+            sum(d.get('amount', 0) for d in st.session_state.dividends_inputs) +
+            sum(i.get('amount', 0) for i in st.session_state.interest_inputs) +
+            sum(max(0, cg.get('sale_price', 0) - cg.get('purchase_price', 0)) for cg in st.session_state.cg_inputs)
+        )
+        investment_count = (
+            len(st.session_state.dividends_inputs) +
+            len(st.session_state.interest_inputs) +
+            len([cg for cg in st.session_state.cg_inputs if cg.get('sale_price', 0) > cg.get('purchase_price', 0)])
+        )
+        st.metric("Investment Income", f"{investment_total:,.2f} GEL", delta=f"{investment_count} source(s)")
+    
+    st.divider()
+    
+    # Detailed breakdown
+    with st.expander("📋 Detailed Income Breakdown", expanded=False):
+        breakdown_data = []
+        
+        # Salary
+        for idx, s in enumerate(st.session_state.salary_inputs):
+            annual = s.get('monthly_gross', 0) * s.get('months', 0)
+            breakdown_data.append({
+                "Type": "Salary",
+                "Description": f"Source {idx + 1}: {s.get('monthly_gross', 0):,.0f} GEL/month × {s.get('months', 0)} months",
+                "Amount (GEL)": f"{annual:,.2f}"
+            })
+        
+        # Micro Business
+        for idx, m in enumerate(st.session_state.micro_inputs):
+            breakdown_data.append({
+                "Type": "Micro Business",
+                "Description": f"Business {idx + 1}: {m.get('turnover', 0):,.0f} GEL turnover",
+                "Amount (GEL)": f"{m.get('turnover', 0):,.2f}"
+            })
+        
+        # Small Business
+        for idx, s in enumerate(st.session_state.small_inputs):
+            breakdown_data.append({
+                "Type": "Small Business",
+                "Description": f"Business {idx + 1}: {s.get('turnover', 0):,.0f} GEL turnover",
+                "Amount (GEL)": f"{s.get('turnover', 0):,.2f}"
+            })
+        
+        # Rental
+        for idx, r in enumerate(st.session_state.rental_inputs):
+            annual = r.get('monthly_rent', 0) * r.get('months', 0)
+            breakdown_data.append({
+                "Type": "Rental",
+                "Description": f"Property {idx + 1}: {r.get('monthly_rent', 0):,.0f} GEL/month × {r.get('months', 0)} months",
+                "Amount (GEL)": f"{annual:,.2f}"
+            })
+        
+        # Capital Gains
+        for idx, cg in enumerate(st.session_state.cg_inputs):
+            gain = max(0, cg.get('sale_price', 0) - cg.get('purchase_price', 0))
+            if gain > 0:
+                breakdown_data.append({
+                    "Type": "Capital Gains",
+                    "Description": f"Transaction {idx + 1}: {gain:,.0f} GEL gain",
+                    "Amount (GEL)": f"{gain:,.2f}"
+                })
+        
+        # Dividends
+        for idx, d in enumerate(st.session_state.dividends_inputs):
+            breakdown_data.append({
+                "Type": "Dividends",
+                "Description": f"Dividends {idx + 1}",
+                "Amount (GEL)": f"{d.get('amount', 0):,.2f}"
+            })
+        
+        # Interest
+        for idx, i in enumerate(st.session_state.interest_inputs):
+            breakdown_data.append({
+                "Type": "Interest",
+                "Description": f"Interest {idx + 1}",
+                "Amount (GEL)": f"{i.get('amount', 0):,.2f}"
+            })
+        
+        if breakdown_data:
+            # Create dataframe using Streamlit's built-in dataframe
+            st.dataframe(breakdown_data, use_container_width=True, hide_index=True)
+            
+            st.caption(f"**Total Family Income:** {total_calculated_income:,.2f} GEL")
+        else:
+            st.caption("No income sources entered yet.")
+    
+    st.caption(f"💡 **Total Calculated Family Income:** {total_calculated_income:,.2f} GEL (used for property tax calculation)")
+else:
+    st.info("💡 Enter income sources in the tabs above to see your income summary here.")
 
 # Results Section
 st.divider()
@@ -1100,7 +1305,7 @@ try:
         dividends=[DividendsIncome(amount=d.get('amount', 0)) for d in st.session_state.dividends_inputs],
         interest=[InterestIncome(amount=i.get('amount', 0)) for i in st.session_state.interest_inputs],
         property_tax=[PropertyTaxInput(
-            family_income=p.get('family_income', 0),
+            family_income=p.get('family_income', calculate_total_family_income()) if not p.get('use_calculated', False) else calculate_total_family_income(),
             properties=p.get('properties', 0)
         ) for p in st.session_state.property_inputs]
     )
