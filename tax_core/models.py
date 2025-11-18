@@ -1,5 +1,5 @@
 """Data models for tax calculations."""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Literal
 from enum import Enum
 
@@ -68,6 +68,7 @@ class PropertyTaxInput:
     """Property tax input."""
     family_income: float = 0.0
     properties: int = 0
+    property_values: List[float] = field(default_factory=list)  # List of property values (market value or purchase price)
 
 
 @dataclass

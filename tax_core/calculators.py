@@ -412,37 +412,61 @@ def calculate_property_tax(property_inputs: List[PropertyTaxInput]) -> RegimeRes
             ))
             # Warning removed - exemption status shown in UI
         else:
-            # Simplified property tax calculation
-            # Basic estimate: property tax typically ranges from 0.5% to 1.5% of property value
-            # For MVP, we use a simplified formula based on number of properties
-            # Note: Actual property tax depends on property value, location, type, etc.
+            # Property tax calculation: 1% of property value annually
+            # Property tax = sum(property_value × 0.01) for each property
+            tax_rate = 0.01  # 1% annual rate
             
-            # Very simplified estimate: assume average property value and rate
-            # This is a placeholder - actual calculation requires property details
-            estimated_property_value_per_unit = 100000.0  # Placeholder average
-            estimated_tax_rate = 0.01  # 1% placeholder rate
+            if prop.property_values and len(prop.property_values) > 0:
+                # Use actual property values if provided
+                total_property_value = sum(prop.property_values)
+                property_tax = total_property_value * tax_rate
+                
+                steps.append(CalculationStep(
+                    id=f"property_{idx}_total_value",
+                    description=f"Total property value (property set {idx + 1})",
+                    formula="total_value = sum(property_values)",
+                    values=f"total_value = {total_property_value:,.2f} GEL",
+                    result=total_property_value,
+                    legal_ref="RS.ge - Property Tax"
+                ))
+                
+                steps.append(CalculationStep(
+                    id=f"property_{idx}_tax",
+                    description=f"Property tax (1% of property value)",
+                    formula="tax = total_value × 0.01",
+                    values=f"tax = {total_property_value:,.2f} × 0.01",
+                    result=property_tax,
+                    legal_ref="RS.ge - Property Tax (1% annual rate)"
+                ))
+                
+                # Show individual property breakdown if multiple properties
+                if len(prop.property_values) > 1:
+                    for prop_idx, prop_value in enumerate(prop.property_values):
+                        prop_tax = prop_value * tax_rate
+                        steps.append(CalculationStep(
+                            id=f"property_{idx}_prop_{prop_idx}",
+                            description=f"Property {prop_idx + 1} tax",
+                            formula=f"tax = property_value × 0.01",
+                            values=f"tax = {prop_value:,.2f} × 0.01",
+                            result=prop_tax,
+                            legal_ref="RS.ge - Property Tax"
+                        ))
+            else:
+                # Fallback: if no property values provided, use simplified estimate
+                # This maintains backward compatibility
+                estimated_property_value_per_unit = 100000.0  # Default estimate
+                property_tax = prop.properties * estimated_property_value_per_unit * tax_rate
+                
+                steps.append(CalculationStep(
+                    id=f"property_{idx}_estimate",
+                    description=f"Estimated property tax (no property values provided)",
+                    formula="tax ≈ properties × estimated_value × 0.01",
+                    values=f"tax ≈ {prop.properties} × {estimated_property_value_per_unit:,.0f} × 0.01",
+                    result=property_tax,
+                    legal_ref="RS.ge - Property Tax (Estimated - provide property values for accurate calculation)"
+                ))
             
-            estimated_tax = prop.properties * estimated_property_value_per_unit * estimated_tax_rate
-            
-            steps.append(CalculationStep(
-                id=f"property_{idx}_estimate",
-                description=f"Estimated property tax (simplified calculation)",
-                formula="tax ≈ properties × avg_value × rate",
-                values=f"tax ≈ {prop.properties} × {estimated_property_value_per_unit:,.0f} × {estimated_tax_rate}",
-                result=estimated_tax,
-                legal_ref="RS.ge - Property Tax (Simplified estimate)"
-            ))
-            
-            steps.append(CalculationStep(
-                id=f"property_{idx}_tax",
-                description=f"Property tax for {prop.properties} properties",
-                formula="tax = estimated_tax",
-                values=f"tax = {estimated_tax:,.2f}",
-                result=estimated_tax,
-                legal_ref="RS.ge - Property Tax"
-            ))
-            
-            total_tax += estimated_tax
+            total_tax += property_tax
     
     return RegimeResult(
         regime_id="property_tax",

@@ -33,7 +33,7 @@ st.subheader("For individuals – unofficial estimation tool")
 # General Notice
 st.info("""
 **ℹ️ Important Notes:**
-- **Property Tax:** Calculation is simplified and estimated. Actual property tax depends on property values, locations, types, and other factors. Consult RS.ge or a tax advisor for accurate calculation.
+- **Property Tax:** Calculated as 1% of property value annually (based on market value or purchase price), only if family income exceeds 65,000 GEL threshold. Property values should reflect actual market value or purchase price. Consult RS.ge or a tax advisor for official property valuations.
 - **All Calculations:** This is an unofficial estimation tool. Tax laws may change, and individual circumstances vary. Always consult with a qualified tax professional for official tax advice.
 """)
 
@@ -267,7 +267,8 @@ with st.sidebar:
                         interest=[InterestIncome(amount=i.get('amount', 0)) for i in st.session_state.interest_inputs],
                         property_tax=[PropertyTaxInput(
                             family_income=p.get('family_income', 0),
-                            properties=p.get('properties', 0)
+                            properties=p.get('properties', 0),
+                            property_values=p.get('property_values', [])
                         ) for p in st.session_state.property_inputs]
                     )
                     
@@ -1400,7 +1401,7 @@ def calculate_total_family_income():
 # Property Tax tab
 with tab8:
     st.subheader("Property Tax")
-    st.caption("ℹ️ Property tax is calculated based on family income threshold (65,000 GEL)")
+    st.caption("ℹ️ Property tax is 1% of property value annually, calculated only if family income exceeds 65,000 GEL threshold")
     
     # Auto-calculate total family income from all sources
     calculated_family_income = calculate_total_family_income()
@@ -1439,19 +1440,43 @@ with tab8:
         
         properties = st.number_input(
             "Number of Properties",
-            min_value=0,
+            min_value=1,
             value=1,
-            key="property_count"
+            key="property_count",
+            help="Enter the number of properties you own"
         )
+        
+        # Property values input
+        st.caption("💡 **Property Tax Rate:** 1% of property value annually (based on market value or purchase price)")
+        property_values = []
+        for i in range(int(properties)):
+            prop_value = st.number_input(
+                f"Property {i + 1} Value (GEL)",
+                min_value=0.0,
+                value=100000.0,
+                step=1000.0,
+                key=f"property_value_{i}",
+                help="Enter market value or purchase price of the property"
+            )
+            property_values.append(prop_value)
+        
+        total_property_value = sum(property_values)
+        estimated_tax = total_property_value * 0.01 if family_income > 65000.0 else 0.0
+        
+        if family_income > 65000.0:
+            st.info(f"💰 **Estimated Property Tax:** {estimated_tax:,.2f} GEL/year (1% of {total_property_value:,.2f} GEL)")
+        else:
+            st.info(f"💰 **Total Property Value:** {total_property_value:,.2f} GEL (Tax exempt: family income below threshold)")
         
         if st.button("Add Property Tax Info", key="add_property"):
             try:
                 st.session_state.property_inputs.append({
                     'family_income': family_income,
                     'properties': int(properties),
+                    'property_values': property_values.copy(),
                     'use_calculated': use_calculated
                 })
-                st.success(f"Added property tax info: {properties} properties")
+                st.success(f"Added property tax info: {properties} properties (Total value: {total_property_value:,.2f} GEL)")
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Property Tax Info", family_income=family_income, properties=properties)
@@ -1467,11 +1492,19 @@ with tab8:
                 current_family_income = prop.get('family_income', 0)
             
             properties = prop.get('properties', 0)
+            property_values = prop.get('property_values', [])
+            total_property_value = sum(property_values) if property_values else 0.0
             threshold = 65000.0
             status = "⚠️ Exempt (below threshold)" if current_family_income <= threshold else "✓ Taxable (above threshold)"
+            estimated_tax = total_property_value * 0.01 if current_family_income > threshold else 0.0
             
             income_source_note = " (auto-calculated)" if prop.get('use_calculated', False) else " (manual)"
-            with st.expander(f"Info {idx + 1}: {properties} properties, {current_family_income:,.0f} GEL family income{income_source_note} - {status}", expanded=False):
+            display_text = f"Info {idx + 1}: {properties} properties"
+            if total_property_value > 0:
+                display_text += f", {total_property_value:,.0f} GEL total value"
+            display_text += f", {current_family_income:,.0f} GEL family income{income_source_note} - {status}"
+            
+            with st.expander(display_text, expanded=False):
                 use_calculated_edit = st.checkbox(
                     "Use auto-calculated family income",
                     value=prop.get('use_calculated', False),
@@ -1494,10 +1527,37 @@ with tab8:
                 
                 edit_properties = st.number_input(
                     "Number of Properties",
-                    min_value=0,
+                    min_value=1,
                     value=properties,
                     key=f"edit_property_count_{idx}"
                 )
+                
+                # Property values editing
+                st.caption("💡 **Property Tax Rate:** 1% of property value annually")
+                edit_property_values = []
+                current_values = property_values if property_values else [0.0] * properties
+                # Ensure we have enough values for the current property count
+                while len(current_values) < edit_properties:
+                    current_values.append(0.0)
+                
+                for i in range(int(edit_properties)):
+                    prop_value = st.number_input(
+                        f"Property {i + 1} Value (GEL)",
+                        min_value=0.0,
+                        value=current_values[i] if i < len(current_values) else 100000.0,
+                        step=1000.0,
+                        key=f"edit_property_value_{idx}_{i}",
+                        help="Enter market value or purchase price of the property"
+                    )
+                    edit_property_values.append(prop_value)
+                
+                edit_total_value = sum(edit_property_values)
+                edit_estimated_tax = edit_total_value * 0.01 if edit_family_income > threshold else 0.0
+                
+                if edit_family_income > threshold:
+                    st.info(f"💰 **Estimated Property Tax:** {edit_estimated_tax:,.2f} GEL/year (1% of {edit_total_value:,.2f} GEL)")
+                else:
+                    st.info(f"💰 **Total Property Value:** {edit_total_value:,.2f} GEL (Tax exempt: family income below threshold)")
                 
                 col_btn1, col_btn2 = st.columns([1, 1])
                 with col_btn1:
@@ -1506,6 +1566,7 @@ with tab8:
                             st.session_state.property_inputs[idx] = {
                                 'family_income': edit_family_income,
                                 'properties': int(edit_properties),
+                                'property_values': edit_property_values.copy(),
                                 'use_calculated': use_calculated_edit
                             }
                             st.success("✓ Updated")
@@ -1691,7 +1752,8 @@ try:
         interest=[InterestIncome(amount=i.get('amount', 0)) for i in st.session_state.interest_inputs],
         property_tax=[PropertyTaxInput(
             family_income=p.get('family_income', calculate_total_family_income()) if not p.get('use_calculated', False) else calculate_total_family_income(),
-            properties=p.get('properties', 0)
+            properties=p.get('properties', 0),
+            property_values=p.get('property_values', [])
         ) for p in st.session_state.property_inputs]
     )
 except Exception as e:
