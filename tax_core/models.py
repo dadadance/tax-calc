@@ -70,6 +70,8 @@ class PropertyTaxInput:
     properties: int = 0
     property_values: List[float] = field(default_factory=list)  # List of property values (market value or purchase price)
     tax_rate: float = 0.01  # Property tax rate (default 1%, can be adjusted by municipality)
+    income_threshold: float = 40000.0  # Income threshold for property tax (RS.ge: 40,000 GEL individual income)
+    # Note: Some sources indicate 65,000 GEL for family income - verify with RS.ge
 
 
 @dataclass

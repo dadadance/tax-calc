@@ -269,7 +269,8 @@ with st.sidebar:
                             family_income=p.get('family_income', 0),
                             properties=p.get('properties', 0),
                             property_values=p.get('property_values', []),
-                            tax_rate=p.get('tax_rate', 0.01)
+                            tax_rate=p.get('tax_rate', 0.01),
+                            income_threshold=p.get('income_threshold', 40000.0)
                         ) for p in st.session_state.property_inputs]
                     )
                     
@@ -1402,25 +1403,58 @@ def calculate_total_family_income():
 # Property Tax tab
 with tab8:
     st.subheader("Property Tax")
-    st.caption("ℹ️ Property tax is 1% of property value annually, calculated only if family income exceeds 65,000 GEL threshold")
+    st.caption("ℹ️ Property tax is calculated as a percentage of property value annually, only if income exceeds the threshold")
+    
+    # Important notice about threshold
+    st.warning("""
+    **⚠️ Important Threshold Notice:**
+    - **RS.ge Official Threshold:** 40,000 GEL (individual income)
+    - **Some sources indicate:** 65,000 GEL (family income)
+    - **Action:** Verify with RS.ge which threshold applies to your situation
+    - The calculator allows you to set the threshold below (default: 40,000 GEL per RS.ge)
+    """)
     
     # Auto-calculate total family income from all sources
     calculated_family_income = calculate_total_family_income()
     
     # Show calculated income summary
     if calculated_family_income > 0:
-        st.info(f"💰 **Auto-calculated Family Income:** {calculated_family_income:,.2f} GEL (from all income sources)")
-        threshold = 65000.0
-        if calculated_family_income > threshold:
-            st.success(f"✓ Your family income ({calculated_family_income:,.2f} GEL) exceeds the threshold ({threshold:,.0f} GEL). Property tax will apply.")
+        st.info(f"💰 **Auto-calculated Income:** {calculated_family_income:,.2f} GEL (from all income sources)")
+        # Default threshold: 40,000 GEL per RS.ge (can be overridden below)
+        default_threshold = 40000.0
+        if calculated_family_income > default_threshold:
+            st.success(f"✓ Your income ({calculated_family_income:,.2f} GEL) exceeds RS.ge threshold ({default_threshold:,.0f} GEL). Property tax may apply.")
         else:
-            st.warning(f"⚠️ Your family income ({calculated_family_income:,.2f} GEL) is below the threshold ({threshold:,.0f} GEL). You may be exempt from property tax.")
+            st.warning(f"⚠️ Your income ({calculated_family_income:,.2f} GEL) is below RS.ge threshold ({default_threshold:,.0f} GEL). You may be exempt from property tax.")
     
     with st.expander("Add Property Tax Info", expanded=True):
-        st.caption("💡 **Note:** Family income is automatically calculated from all your income sources above. You can override it below if needed (e.g., if you have other family members' income not entered).")
+        st.caption("💡 **Note:** Income is automatically calculated from all your income sources above. You can override it below if needed.")
+        
+        # Income threshold setting
+        st.subheader("Income Threshold")
+        threshold_mode = st.radio(
+            "Threshold Type",
+            ["RS.ge Official (40,000 GEL - Individual Income)", "Custom Threshold"],
+            index=0,
+            key="threshold_mode",
+            help="RS.ge official threshold is 40,000 GEL for individual income. Some sources indicate 65,000 GEL for family income - verify with RS.ge."
+        )
+        
+        if threshold_mode == "RS.ge Official (40,000 GEL - Individual Income)":
+            income_threshold = 40000.0
+            st.info(f"Using RS.ge official threshold: **{income_threshold:,.0f} GEL** (individual income)")
+        else:
+            income_threshold = st.number_input(
+                "Custom Income Threshold (GEL)",
+                min_value=0.0,
+                value=65000.0,
+                step=1000.0,
+                key="custom_threshold",
+                help="Enter custom threshold (e.g., 65,000 GEL for family income if applicable - verify with RS.ge)"
+            )
         
         use_calculated = st.checkbox(
-            "Use auto-calculated family income",
+            "Use auto-calculated income",
             value=True,
             key="use_calculated_income",
             help="Use the total income calculated from all entered sources"
@@ -1431,12 +1465,12 @@ with tab8:
             st.caption(f"**Using calculated income:** {family_income:,.2f} GEL")
         else:
             family_income = st.number_input(
-                "Manual Family Income Override (GEL)",
+                "Manual Income Override (GEL)",
                 min_value=0.0,
-                value=calculated_family_income if calculated_family_income > 0 else 65000.0,
+                value=calculated_family_income if calculated_family_income > 0 else income_threshold,
                 step=1000.0,
                 key="property_income_manual",
-                help="Override the calculated income if you have additional family income sources not entered above"
+                help="Override the calculated income if you have additional income sources not entered above"
             )
         
         properties = st.number_input(
@@ -1474,12 +1508,12 @@ with tab8:
             property_values.append(prop_value)
         
         total_property_value = sum(property_values)
-        estimated_tax = total_property_value * tax_rate_decimal if family_income > 65000.0 else 0.0
+        estimated_tax = total_property_value * tax_rate_decimal if family_income > income_threshold else 0.0
         
-        if family_income > 65000.0:
+        if family_income > income_threshold:
             st.info(f"💰 **Estimated Property Tax:** {estimated_tax:,.2f} GEL/year ({tax_rate:.1f}% of {total_property_value:,.2f} GEL)")
         else:
-            st.info(f"💰 **Total Property Value:** {total_property_value:,.2f} GEL (Tax exempt: family income below threshold)")
+            st.info(f"💰 **Total Property Value:** {total_property_value:,.2f} GEL (Tax exempt: income below threshold of {income_threshold:,.0f} GEL)")
         
         if st.button("Add Property Tax Info", key="add_property"):
             try:
@@ -1488,6 +1522,7 @@ with tab8:
                     'properties': int(properties),
                     'property_values': property_values.copy(),
                     'tax_rate': tax_rate_decimal,
+                    'income_threshold': income_threshold,
                     'use_calculated': use_calculated
                 })
                 st.success(f"Added property tax info: {properties} properties (Total value: {total_property_value:,.2f} GEL)")
@@ -1508,17 +1543,18 @@ with tab8:
             properties = prop.get('properties', 0)
             property_values = prop.get('property_values', [])
             tax_rate = prop.get('tax_rate', 0.01)
+            income_threshold = prop.get('income_threshold', 40000.0)
             total_property_value = sum(property_values) if property_values else 0.0
-            threshold = 65000.0
-            status = "⚠️ Exempt (below threshold)" if current_family_income <= threshold else "✓ Taxable (above threshold)"
-            estimated_tax = total_property_value * tax_rate if current_family_income > threshold else 0.0
+            status = "⚠️ Exempt (below threshold)" if current_family_income <= income_threshold else "✓ Taxable (above threshold)"
+            estimated_tax = total_property_value * tax_rate if current_family_income > income_threshold else 0.0
             
             income_source_note = " (auto-calculated)" if prop.get('use_calculated', False) else " (manual)"
             display_text = f"Info {idx + 1}: {properties} properties"
             if total_property_value > 0:
                 display_text += f", {total_property_value:,.0f} GEL total value"
             display_text += f", {tax_rate*100:.1f}% rate"
-            display_text += f", {current_family_income:,.0f} GEL family income{income_source_note} - {status}"
+            display_text += f", threshold: {income_threshold:,.0f} GEL"
+            display_text += f", {current_family_income:,.0f} GEL income{income_source_note} - {status}"
             
             with st.expander(display_text, expanded=False):
                 use_calculated_edit = st.checkbox(
@@ -1547,6 +1583,29 @@ with tab8:
                     value=properties,
                     key=f"edit_property_count_{idx}"
                 )
+                
+                # Income threshold editing
+                current_threshold = prop.get('income_threshold', 40000.0)
+                threshold_mode_edit = st.radio(
+                    "Threshold Type",
+                    ["RS.ge Official (40,000 GEL - Individual Income)", "Custom Threshold"],
+                    index=0 if current_threshold == 40000.0 else 1,
+                    key=f"edit_threshold_mode_{idx}",
+                    help="RS.ge official threshold is 40,000 GEL for individual income"
+                )
+                
+                if threshold_mode_edit == "RS.ge Official (40,000 GEL - Individual Income)":
+                    edit_income_threshold = 40000.0
+                    st.info(f"Using RS.ge official threshold: **{edit_income_threshold:,.0f} GEL**")
+                else:
+                    edit_income_threshold = st.number_input(
+                        "Custom Income Threshold (GEL)",
+                        min_value=0.0,
+                        value=current_threshold,
+                        step=1000.0,
+                        key=f"edit_custom_threshold_{idx}",
+                        help="Enter custom threshold (e.g., 65,000 GEL for family income - verify with RS.ge)"
+                    )
                 
                 # Property tax rate editing
                 current_tax_rate = prop.get('tax_rate', 0.01) * 100.0  # Convert to percentage
@@ -1581,12 +1640,12 @@ with tab8:
                     edit_property_values.append(prop_value)
                 
                 edit_total_value = sum(edit_property_values)
-                edit_estimated_tax = edit_total_value * edit_tax_rate_decimal if edit_family_income > threshold else 0.0
+                edit_estimated_tax = edit_total_value * edit_tax_rate_decimal if edit_family_income > edit_income_threshold else 0.0
                 
-                if edit_family_income > threshold:
+                if edit_family_income > edit_income_threshold:
                     st.info(f"💰 **Estimated Property Tax:** {edit_estimated_tax:,.2f} GEL/year ({edit_tax_rate:.1f}% of {edit_total_value:,.2f} GEL)")
                 else:
-                    st.info(f"💰 **Total Property Value:** {edit_total_value:,.2f} GEL (Tax exempt: family income below threshold)")
+                    st.info(f"💰 **Total Property Value:** {edit_total_value:,.2f} GEL (Tax exempt: income below threshold of {edit_income_threshold:,.0f} GEL)")
                 
                 col_btn1, col_btn2 = st.columns([1, 1])
                 with col_btn1:
@@ -1597,6 +1656,7 @@ with tab8:
                                 'properties': int(edit_properties),
                                 'property_values': edit_property_values.copy(),
                                 'tax_rate': edit_tax_rate_decimal,
+                                'income_threshold': edit_income_threshold,
                                 'use_calculated': use_calculated_edit
                             }
                             st.success("✓ Updated")
@@ -1784,7 +1844,8 @@ try:
             family_income=p.get('family_income', calculate_total_family_income()) if not p.get('use_calculated', False) else calculate_total_family_income(),
             properties=p.get('properties', 0),
             property_values=p.get('property_values', []),
-            tax_rate=p.get('tax_rate', 0.01)
+            tax_rate=p.get('tax_rate', 0.01),
+            income_threshold=p.get('income_threshold', 40000.0)
         ) for p in st.session_state.property_inputs]
     )
 except Exception as e:

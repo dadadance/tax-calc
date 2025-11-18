@@ -370,26 +370,34 @@ def calculate_interest(interest_incomes: List[InterestIncome]) -> RegimeResult:
 
 
 def calculate_property_tax(property_inputs: List[PropertyTaxInput]) -> RegimeResult:
-    """Calculate property tax (simplified)."""
+    """Calculate property tax.
+    
+    Note: According to RS.ge, the threshold is 40,000 GEL for individual income.
+    Some sources indicate 65,000 GEL for family income - verify with RS.ge.
+    """
     steps = []
     total_tax = 0.0
     warnings = []
     
-    # Simplified: check if family income exceeds threshold
-    # Threshold is typically around 60,000-65,000 GEL per year
-    threshold = 65000.0
+    # Income threshold for property tax exemption
+    # RS.ge official: 40,000 GEL (individual income)
+    # Some sources: 65,000 GEL (family income) - verify with RS.ge
+    # Default to 40,000 GEL per RS.ge, but allow override per property input
     
     for idx, prop in enumerate(property_inputs):
         if prop.family_income <= 0:
             continue
         
+        # Use property-specific threshold or default to 40,000 GEL (RS.ge official)
+        threshold = prop.income_threshold if hasattr(prop, 'income_threshold') and prop.income_threshold > 0 else 40000.0
+        
         steps.append(CalculationStep(
             id=f"property_{idx}_check",
-            description=f"Family income check (property set {idx + 1})",
-            formula=f"family_income > {threshold:,.0f}",
+            description=f"Income threshold check (property set {idx + 1})",
+            formula=f"income > {threshold:,.0f} GEL (RS.ge threshold)",
             values=f"{prop.family_income:,.2f} > {threshold:,.0f}",
             result=prop.family_income,
-            legal_ref="RS.ge - Property Tax"
+            legal_ref="RS.ge - Property Tax (Threshold: 40,000 GEL individual income)"
         ))
         
         steps.append(CalculationStep(
