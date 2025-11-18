@@ -412,9 +412,9 @@ def calculate_property_tax(property_inputs: List[PropertyTaxInput]) -> RegimeRes
             ))
             # Warning removed - exemption status shown in UI
         else:
-            # Property tax calculation: 1% of property value annually
-            # Property tax = sum(property_value × 0.01) for each property
-            tax_rate = 0.01  # 1% annual rate
+            # Property tax calculation: user-specified rate (default 1%) of property value annually
+            # Property tax = sum(property_value × tax_rate) for each property
+            tax_rate = prop.tax_rate if hasattr(prop, 'tax_rate') and prop.tax_rate > 0 else 0.01  # Default 1% if not specified
             
             if prop.property_values and len(prop.property_values) > 0:
                 # Use actual property values if provided
@@ -432,11 +432,11 @@ def calculate_property_tax(property_inputs: List[PropertyTaxInput]) -> RegimeRes
                 
                 steps.append(CalculationStep(
                     id=f"property_{idx}_tax",
-                    description=f"Property tax (1% of property value)",
-                    formula="tax = total_value × 0.01",
-                    values=f"tax = {total_property_value:,.2f} × 0.01",
+                    description=f"Property tax ({tax_rate*100:.1f}% of property value)",
+                    formula=f"tax = total_value × {tax_rate}",
+                    values=f"tax = {total_property_value:,.2f} × {tax_rate}",
                     result=property_tax,
-                    legal_ref="RS.ge - Property Tax (1% annual rate)"
+                    legal_ref="RS.ge - Property Tax"
                 ))
                 
                 # Show individual property breakdown if multiple properties
@@ -446,8 +446,8 @@ def calculate_property_tax(property_inputs: List[PropertyTaxInput]) -> RegimeRes
                         steps.append(CalculationStep(
                             id=f"property_{idx}_prop_{prop_idx}",
                             description=f"Property {prop_idx + 1} tax",
-                            formula=f"tax = property_value × 0.01",
-                            values=f"tax = {prop_value:,.2f} × 0.01",
+                            formula=f"tax = property_value × {tax_rate}",
+                            values=f"tax = {prop_value:,.2f} × {tax_rate}",
                             result=prop_tax,
                             legal_ref="RS.ge - Property Tax"
                         ))
@@ -460,8 +460,8 @@ def calculate_property_tax(property_inputs: List[PropertyTaxInput]) -> RegimeRes
                 steps.append(CalculationStep(
                     id=f"property_{idx}_estimate",
                     description=f"Estimated property tax (no property values provided)",
-                    formula="tax ≈ properties × estimated_value × 0.01",
-                    values=f"tax ≈ {prop.properties} × {estimated_property_value_per_unit:,.0f} × 0.01",
+                    formula=f"tax ≈ properties × estimated_value × {tax_rate}",
+                    values=f"tax ≈ {prop.properties} × {estimated_property_value_per_unit:,.0f} × {tax_rate}",
                     result=property_tax,
                     legal_ref="RS.ge - Property Tax (Estimated - provide property values for accurate calculation)"
                 ))

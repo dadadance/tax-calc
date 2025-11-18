@@ -69,6 +69,7 @@ class PropertyTaxInput:
     family_income: float = 0.0
     properties: int = 0
     property_values: List[float] = field(default_factory=list)  # List of property values (market value or purchase price)
+    tax_rate: float = 0.01  # Property tax rate (default 1%, can be adjusted by municipality)
 
 
 @dataclass
