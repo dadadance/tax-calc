@@ -24,6 +24,14 @@ Detailed documentation specifically for Property Tax:
 - Examples and scenarios
 - Compliance requirements
 
+### [RS_GE_INTEGRATION_PLAN.md](./RS_GE_INTEGRATION_PLAN.md)
+Technical plan for RS.ge integration:
+- API integration architecture
+- Manual import features (CSV/Excel)
+- Data mapping specifications
+- Security and privacy considerations
+- Implementation roadmap
+
 ## Important Notes
 
 ### Verification Required
