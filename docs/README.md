@@ -32,6 +32,21 @@ Technical plan for RS.ge integration:
 - Security and privacy considerations
 - Implementation roadmap
 
+### [RS_GE_API_FEASIBILITY.md](./RS_GE_API_FEASIBILITY.md)
+**⚠️ IMPORTANT:** Feasibility analysis for RS.ge API integration:
+- Research findings on API availability
+- Conflicting information analysis
+- Critical questions that need RS.ge confirmation
+- Recommended next steps
+- Current implementation status
+
+### [RS_GE_API_TEST_RESULTS.md](./RS_GE_API_TEST_RESULTS.md)
+**⚠️ TEST RESULTS:** Actual API authentication test results:
+- API authentication failed with portal credentials
+- Portal login works, but API authentication fails
+- Suggests API may not exist for personal taxpayer data
+- Recommendation: Contact RS.ge directly
+
 ## Important Notes
 
 ### Verification Required

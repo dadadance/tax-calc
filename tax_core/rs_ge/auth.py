@@ -26,8 +26,13 @@ class AuthToken:
 class RSGeAuth:
     """Handle authentication with RS.ge API."""
     
-    # RS.ge API endpoints (to be updated with actual endpoints)
-    AUTH_URL = "https://services.rs.ge/api/auth"  # Placeholder
+    # RS.ge API endpoints
+    # CRS API (found in research - needs verification)
+    CRS_API_TEST = "https://crsapi-test.rs.ge/"
+    CRS_API_PROD = "https://crsapi.rs.ge/"
+    
+    # Placeholder for OAuth2/API Key auth (RS-Server)
+    AUTH_URL = "https://services.rs.ge/api/auth"  # Placeholder - may not be correct
     TOKEN_REFRESH_URL = "https://services.rs.ge/api/auth/refresh"  # Placeholder
     
     def __init__(self, username: Optional[str] = None, password: Optional[str] = None):

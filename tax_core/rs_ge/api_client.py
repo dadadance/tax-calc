@@ -13,8 +13,13 @@ from tax_core.rs_ge.exceptions import (
 class RSGeAPIClient:
     """Client for interacting with RS.ge API."""
     
-    # RS.ge API base URL (to be updated with actual endpoints)
-    BASE_URL = "https://services.rs.ge/api"  # Placeholder
+    # RS.ge API base URLs
+    # CRS API (found in research - needs verification)
+    CRS_API_TEST = "https://crsapi-test.rs.ge/"
+    CRS_API_PROD = "https://crsapi.rs.ge/"
+    
+    # Placeholder for RS-Server API
+    BASE_URL = "https://services.rs.ge/api"  # Placeholder - may not be correct
     
     def __init__(self, auth: Optional[RSGeAuth] = None):
         """
