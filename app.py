@@ -200,6 +200,136 @@ with st.sidebar:
     )
     
     st.divider()
+    
+    # Theme & Design Switcher
+    st.subheader("🎨 Theme & Design")
+    st.caption("Customize the look and feel of the app")
+    
+    # Theme selection
+    theme_options = {
+        "Light (Default)": {
+            "primaryColor": "#FF4B4B",
+            "backgroundColor": "#FFFFFF",
+            "secondaryBackgroundColor": "#F0F2F6",
+            "textColor": "#262730",
+            "font": "sans serif"
+        },
+        "Dark": {
+            "primaryColor": "#FF6B6B",
+            "backgroundColor": "#0E1117",
+            "secondaryBackgroundColor": "#262730",
+            "textColor": "#FAFAFA",
+            "font": "sans serif"
+        },
+        "Blue": {
+            "primaryColor": "#1F77B4",
+            "backgroundColor": "#FFFFFF",
+            "secondaryBackgroundColor": "#E8F4F8",
+            "textColor": "#262730",
+            "font": "sans serif"
+        },
+        "Green": {
+            "primaryColor": "#2CA02C",
+            "backgroundColor": "#FFFFFF",
+            "secondaryBackgroundColor": "#E8F5E9",
+            "textColor": "#262730",
+            "font": "sans serif"
+        },
+        "Purple": {
+            "primaryColor": "#9467BD",
+            "backgroundColor": "#FFFFFF",
+            "secondaryBackgroundColor": "#F3E5F5",
+            "textColor": "#262730",
+            "font": "sans serif"
+        },
+        "Orange": {
+            "primaryColor": "#FF7F0E",
+            "backgroundColor": "#FFFFFF",
+            "secondaryBackgroundColor": "#FFF3E0",
+            "textColor": "#262730",
+            "font": "sans serif"
+        }
+    }
+    
+    # Initialize theme in session state
+    if 'selected_theme' not in st.session_state:
+        st.session_state.selected_theme = "Dark"
+    
+    selected_theme_name = st.selectbox(
+        "Choose Theme",
+        list(theme_options.keys()),
+        index=list(theme_options.keys()).index(st.session_state.selected_theme) if st.session_state.selected_theme in theme_options else 0,
+        key="theme_selector",
+        help="Select a theme to change the app's appearance"
+    )
+    
+    # Apply theme using custom CSS
+    if selected_theme_name != st.session_state.selected_theme:
+        st.session_state.selected_theme = selected_theme_name
+    
+    theme = theme_options[st.session_state.selected_theme]
+    
+    # Inject custom CSS for theme
+    st.markdown(f"""
+    <style>
+    :root {{
+        --primary-color: {theme['primaryColor']};
+        --background-color: {theme['backgroundColor']};
+        --secondary-background-color: {theme['secondaryBackgroundColor']};
+        --text-color: {theme['textColor']};
+    }}
+    
+    .stApp {{
+        background-color: {theme['backgroundColor']};
+    }}
+    
+    .main .block-container {{
+        background-color: {theme['backgroundColor']};
+        color: {theme['textColor']};
+    }}
+    
+    [data-testid="stSidebar"] {{
+        background-color: {theme['secondaryBackgroundColor']};
+    }}
+    
+    .stButton>button {{
+        background-color: {theme['primaryColor']};
+        color: white;
+        border-radius: 0.5rem;
+        border: none;
+        font-weight: 500;
+    }}
+    
+    .stButton>button:hover {{
+        background-color: {theme['primaryColor']};
+        opacity: 0.9;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }}
+    
+    h1, h2, h3, h4, h5, h6 {{
+        color: {theme['textColor']};
+    }}
+    
+    .stSuccess {{
+        background-color: {theme['secondaryBackgroundColor']};
+        border-left: 4px solid {theme['primaryColor']};
+    }}
+    
+    .stInfo {{
+        background-color: {theme['secondaryBackgroundColor']};
+        border-left: 4px solid {theme['primaryColor']};
+    }}
+    
+    .stWarning {{
+        background-color: {theme['secondaryBackgroundColor']};
+    }}
+    
+    .stError {{
+        background-color: {theme['secondaryBackgroundColor']};
+    }}
+    </style>
+    """, unsafe_allow_html=True)
+    
     st.caption(f"Rules Version: v{tax_year}.01")
     st.caption("Currency: GEL (Georgian Lari)")
     
@@ -542,10 +672,13 @@ with tab1:
                     'months': int(months),
                     'pension_rate': pension_rate
                 })
+                # Mark the last added item for highlighting
+                st.session_state.last_added_salary_idx = len(st.session_state.salary_inputs) - 1
                 if input_mode == "Monthly":
-                    st.success(f"Added salary source: {monthly_gross:,.0f} GEL/month × {months} months")
+                    st.success(f"✅ **Successfully added!** Salary source: {monthly_gross:,.0f} GEL/month × {months} months")
                 else:
-                    st.success(f"Added salary source: {annual_gross:,.0f} GEL/year ({months} months)")
+                    st.success(f"✅ **Successfully added!** Salary source: {annual_gross:,.0f} GEL/year ({months} months)")
+                st.balloons()  # Visual celebration
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Salary Source", monthly_gross=monthly_gross, months=months)
@@ -553,9 +686,18 @@ with tab1:
     
     if st.session_state.salary_inputs:
         st.subheader("Current Salary Sources")
+        # Show count badge
+        st.caption(f"📊 **{len(st.session_state.salary_inputs)}** salary source(s) added")
+        
         for idx, sal in enumerate(st.session_state.salary_inputs):
             annual_equiv = sal['monthly_gross'] * sal['months']
-            with st.expander(f"Source {idx + 1}: {sal['monthly_gross']:,.0f} GEL/month × {sal['months']} months ({annual_equiv:,.0f} GEL/year)", expanded=False):
+            # Highlight newly added item
+            is_new = st.session_state.get('last_added_salary_idx') == idx
+            expander_label = f"Source {idx + 1}: {sal['monthly_gross']:,.0f} GEL/month × {sal['months']} months ({annual_equiv:,.0f} GEL/year)"
+            if is_new:
+                expander_label = f"✨ {expander_label} ✨"
+            
+            with st.expander(expander_label, expanded=is_new):
                 edit_input_mode = st.radio(
                     "Input Mode",
                     ["Monthly", "Annual"],
@@ -689,10 +831,12 @@ with tab2:
                     'no_employees': no_employees,
                     'activity_allowed': activity_allowed
                 })
+                st.session_state.last_added_micro_idx = len(st.session_state.micro_inputs) - 1
                 if input_mode == "Monthly":
-                    st.success(f"Added micro business: {monthly_turnover:,.0f} GEL/month × {months} months = {turnover:,.0f} GEL/year")
+                    st.success(f"✅ **Successfully added!** Micro business: {monthly_turnover:,.0f} GEL/month × {months} months = {turnover:,.0f} GEL/year")
                 else:
-                    st.success(f"Added micro business: {turnover:,.0f} GEL turnover")
+                    st.success(f"✅ **Successfully added!** Micro business: {turnover:,.0f} GEL turnover")
+                st.balloons()
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Micro Business", turnover=turnover)
@@ -700,9 +844,14 @@ with tab2:
     
     if st.session_state.micro_inputs:
         st.subheader("Current Micro Businesses")
+        st.caption(f"📊 **{len(st.session_state.micro_inputs)}** micro business(es) added")
         for idx, micro in enumerate(st.session_state.micro_inputs):
             monthly_equiv = micro['turnover'] / 12
-            with st.expander(f"Business {idx + 1}: {micro['turnover']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)", expanded=False):
+            is_new = st.session_state.get('last_added_micro_idx') == idx
+            expander_label = f"Business {idx + 1}: {micro['turnover']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)"
+            if is_new:
+                expander_label = f"✨ {expander_label} ✨"
+            with st.expander(expander_label, expanded=is_new):
                 edit_input_mode = st.radio(
                     "Input Mode",
                     ["Monthly", "Annual"],
@@ -816,10 +965,12 @@ with tab3:
                     'turnover': turnover,
                     'registered': registered
                 })
+                st.session_state.last_added_small_idx = len(st.session_state.small_inputs) - 1
                 if input_mode == "Monthly":
-                    st.success(f"Added small business: {monthly_turnover:,.0f} GEL/month × {months} months = {turnover:,.0f} GEL/year")
+                    st.success(f"✅ **Successfully added!** Small business: {monthly_turnover:,.0f} GEL/month × {months} months = {turnover:,.0f} GEL/year")
                 else:
-                    st.success(f"Added small business: {turnover:,.0f} GEL turnover")
+                    st.success(f"✅ **Successfully added!** Small business: {turnover:,.0f} GEL turnover")
+                st.balloons()
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Small Business", turnover=turnover)
@@ -827,9 +978,14 @@ with tab3:
     
     if st.session_state.small_inputs:
         st.subheader("Current Small Businesses")
+        st.caption(f"📊 **{len(st.session_state.small_inputs)}** small business(es) added")
         for idx, small in enumerate(st.session_state.small_inputs):
             monthly_equiv = small['turnover'] / 12
-            with st.expander(f"Business {idx + 1}: {small['turnover']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)", expanded=False):
+            is_new = st.session_state.get('last_added_small_idx') == idx
+            expander_label = f"Business {idx + 1}: {small['turnover']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)"
+            if is_new:
+                expander_label = f"✨ {expander_label} ✨"
+            with st.expander(expander_label, expanded=is_new):
                 edit_input_mode = st.radio(
                     "Input Mode",
                     ["Monthly", "Annual"],
@@ -950,10 +1106,12 @@ with tab4:
                     'months': int(months),
                     'special_5_percent': special_5_percent
                 })
+                st.session_state.last_added_rental_idx = len(st.session_state.rental_inputs) - 1
                 if input_mode == "Monthly":
-                    st.success(f"Added rental property: {monthly_rent:,.0f} GEL/month × {months} months")
+                    st.success(f"✅ **Successfully added!** Rental property: {monthly_rent:,.0f} GEL/month × {months} months")
                 else:
-                    st.success(f"Added rental property: {annual_rent:,.0f} GEL/year ({months} months)")
+                    st.success(f"✅ **Successfully added!** Rental property: {annual_rent:,.0f} GEL/year ({months} months)")
+                st.balloons()
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Rental Property", monthly_rent=monthly_rent, months=months)
@@ -961,9 +1119,14 @@ with tab4:
     
     if st.session_state.rental_inputs:
         st.subheader("Current Rental Properties")
+        st.caption(f"📊 **{len(st.session_state.rental_inputs)}** rental propert(ies) added")
         for idx, rental in enumerate(st.session_state.rental_inputs):
             annual_equiv = rental['monthly_rent'] * rental['months']
-            with st.expander(f"Property {idx + 1}: {rental['monthly_rent']:,.0f} GEL/month × {rental['months']} months ({annual_equiv:,.0f} GEL/year)", expanded=False):
+            is_new = st.session_state.get('last_added_rental_idx') == idx
+            expander_label = f"Property {idx + 1}: {rental['monthly_rent']:,.0f} GEL/month × {rental['months']} months ({annual_equiv:,.0f} GEL/year)"
+            if is_new:
+                expander_label = f"✨ {expander_label} ✨"
+            with st.expander(expander_label, expanded=is_new):
                 edit_input_mode = st.radio(
                     "Input Mode",
                     ["Monthly", "Annual"],
@@ -1066,7 +1229,9 @@ with tab5:
                     'sale_price': sale_price,
                     'is_primary_residence': is_primary
                 })
-                st.success(f"Added capital gain: {gain:,.0f} GEL gain")
+                st.session_state.last_added_cg_idx = len(st.session_state.cg_inputs) - 1
+                st.success(f"✅ **Successfully added!** Capital gain: {gain:,.0f} GEL gain")
+                st.balloons()
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Capital Gain", purchase_price=purchase_price, sale_price=sale_price)
@@ -1074,11 +1239,16 @@ with tab5:
     
     if st.session_state.cg_inputs:
         st.subheader("Current Capital Gains")
+        st.caption(f"📊 **{len(st.session_state.cg_inputs)}** capital gain(s) added")
         for idx, cg in enumerate(st.session_state.cg_inputs):
             try:
                 gain = cg.get('sale_price', 0) - cg.get('purchase_price', 0)
                 residence_note = " (Primary Residence - Exempt)" if cg.get('is_primary_residence', False) else ""
-                with st.expander(f"Transaction {idx + 1}: {gain:,.0f} GEL gain{residence_note}", expanded=False):
+                is_new = st.session_state.get('last_added_cg_idx') == idx
+                expander_label = f"Transaction {idx + 1}: {gain:,.0f} GEL gain{residence_note}"
+                if is_new:
+                    expander_label = f"✨ {expander_label} ✨"
+                with st.expander(expander_label, expanded=is_new):
                     col1, col2 = st.columns(2)
                     with col1:
                         edit_purchase = st.number_input(
@@ -1172,10 +1342,12 @@ with tab6:
                 st.session_state.dividends_inputs.append({
                     'amount': amount
                 })
+                st.session_state.last_added_dividends_idx = len(st.session_state.dividends_inputs) - 1
                 if input_mode == "Monthly":
-                    st.success(f"Added dividends: {monthly_amount:,.0f} GEL/month × {months} months = {amount:,.0f} GEL/year")
+                    st.success(f"✅ **Successfully added!** Dividends: {monthly_amount:,.0f} GEL/month × {months} months = {amount:,.0f} GEL/year")
                 else:
-                    st.success(f"Added dividends: {amount:,.0f} GEL")
+                    st.success(f"✅ **Successfully added!** Dividends: {amount:,.0f} GEL")
+                st.balloons()
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Dividends", amount=amount)
@@ -1291,10 +1463,12 @@ with tab7:
                 st.session_state.interest_inputs.append({
                     'amount': amount
                 })
+                st.session_state.last_added_interest_idx = len(st.session_state.interest_inputs) - 1
                 if input_mode == "Monthly":
-                    st.success(f"Added interest: {monthly_amount:,.0f} GEL/month × {months} months = {amount:,.0f} GEL/year")
+                    st.success(f"✅ **Successfully added!** Interest: {monthly_amount:,.0f} GEL/month × {months} months = {amount:,.0f} GEL/year")
                 else:
-                    st.success(f"Added interest: {amount:,.0f} GEL")
+                    st.success(f"✅ **Successfully added!** Interest: {amount:,.0f} GEL")
+                st.balloons()
                 st.rerun()
             except Exception as e:
                 log_app_error(e, user_action="Add Interest", amount=amount)
@@ -1302,9 +1476,14 @@ with tab7:
     
     if st.session_state.interest_inputs:
         st.subheader("Current Interest")
+        st.caption(f"📊 **{len(st.session_state.interest_inputs)}** interest source(s) added")
         for idx, interest in enumerate(st.session_state.interest_inputs):
             monthly_equiv = interest['amount'] / 12
-            with st.expander(f"Interest {idx + 1}: {interest['amount']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)", expanded=False):
+            is_new = st.session_state.get('last_added_interest_idx') == idx
+            expander_label = f"Interest {idx + 1}: {interest['amount']:,.0f} GEL/year ({monthly_equiv:,.0f} GEL/month)"
+            if is_new:
+                expander_label = f"✨ {expander_label} ✨"
+            with st.expander(expander_label, expanded=is_new):
                 edit_input_mode = st.radio(
                     "Input Mode",
                     ["Monthly", "Annual"],
@@ -1789,132 +1968,6 @@ with tab8:
         else:
             st.info("💡 **No property tax info added yet.** Add your income sources in other tabs, then add property information here to calculate property tax.")
 
-# Summary Section - Show all entered data
-st.divider()
-st.header("📊 Income Summary")
-st.caption("Overview of all entered income sources")
-
-total_calculated_income = calculate_total_family_income()
-
-if total_calculated_income > 0 or any([
-    st.session_state.salary_inputs,
-    st.session_state.micro_inputs,
-    st.session_state.small_inputs,
-    st.session_state.rental_inputs,
-    st.session_state.cg_inputs,
-    st.session_state.dividends_inputs,
-    st.session_state.interest_inputs,
-    st.session_state.property_inputs
-]):
-    summary_cols = st.columns(4)
-    
-    with summary_cols[0]:
-        salary_total = sum(s.get('monthly_gross', 0) * s.get('months', 0) for s in st.session_state.salary_inputs)
-        st.metric("Salary Income", f"{salary_total:,.2f} GEL", delta=f"{len(st.session_state.salary_inputs)} source(s)")
-    
-    with summary_cols[1]:
-        business_total = (
-            sum(m.get('turnover', 0) for m in st.session_state.micro_inputs) +
-            sum(s.get('turnover', 0) for s in st.session_state.small_inputs)
-        )
-        business_count = len(st.session_state.micro_inputs) + len(st.session_state.small_inputs)
-        st.metric("Business Income", f"{business_total:,.2f} GEL", delta=f"{business_count} business(es)")
-    
-    with summary_cols[2]:
-        rental_total = sum(r.get('monthly_rent', 0) * r.get('months', 0) for r in st.session_state.rental_inputs)
-        st.metric("Rental Income", f"{rental_total:,.2f} GEL", delta=f"{len(st.session_state.rental_inputs)} property(ies)")
-    
-    with summary_cols[3]:
-        investment_total = (
-            sum(d.get('amount', 0) for d in st.session_state.dividends_inputs) +
-            sum(i.get('amount', 0) for i in st.session_state.interest_inputs) +
-            sum(max(0, cg.get('sale_price', 0) - cg.get('purchase_price', 0)) for cg in st.session_state.cg_inputs)
-        )
-        investment_count = (
-            len(st.session_state.dividends_inputs) +
-            len(st.session_state.interest_inputs) +
-            len([cg for cg in st.session_state.cg_inputs if cg.get('sale_price', 0) > cg.get('purchase_price', 0)])
-        )
-        st.metric("Investment Income", f"{investment_total:,.2f} GEL", delta=f"{investment_count} source(s)")
-    
-    st.divider()
-    
-    # Detailed breakdown
-    with st.expander("📋 Detailed Income Breakdown", expanded=False):
-        breakdown_data = []
-        
-        # Salary
-        for idx, s in enumerate(st.session_state.salary_inputs):
-            annual = s.get('monthly_gross', 0) * s.get('months', 0)
-            breakdown_data.append({
-                "Type": "Salary",
-                "Description": f"Source {idx + 1}: {s.get('monthly_gross', 0):,.0f} GEL/month × {s.get('months', 0)} months",
-                "Amount (GEL)": f"{annual:,.2f}"
-            })
-        
-        # Micro Business
-        for idx, m in enumerate(st.session_state.micro_inputs):
-            breakdown_data.append({
-                "Type": "Micro Business",
-                "Description": f"Business {idx + 1}: {m.get('turnover', 0):,.0f} GEL turnover",
-                "Amount (GEL)": f"{m.get('turnover', 0):,.2f}"
-            })
-        
-        # Small Business
-        for idx, s in enumerate(st.session_state.small_inputs):
-            breakdown_data.append({
-                "Type": "Small Business",
-                "Description": f"Business {idx + 1}: {s.get('turnover', 0):,.0f} GEL turnover",
-                "Amount (GEL)": f"{s.get('turnover', 0):,.2f}"
-            })
-        
-        # Rental
-        for idx, r in enumerate(st.session_state.rental_inputs):
-            annual = r.get('monthly_rent', 0) * r.get('months', 0)
-            breakdown_data.append({
-                "Type": "Rental",
-                "Description": f"Property {idx + 1}: {r.get('monthly_rent', 0):,.0f} GEL/month × {r.get('months', 0)} months",
-                "Amount (GEL)": f"{annual:,.2f}"
-            })
-        
-        # Capital Gains
-        for idx, cg in enumerate(st.session_state.cg_inputs):
-            gain = max(0, cg.get('sale_price', 0) - cg.get('purchase_price', 0))
-            if gain > 0:
-                breakdown_data.append({
-                    "Type": "Capital Gains",
-                    "Description": f"Transaction {idx + 1}: {gain:,.0f} GEL gain",
-                    "Amount (GEL)": f"{gain:,.2f}"
-                })
-        
-        # Dividends
-        for idx, d in enumerate(st.session_state.dividends_inputs):
-            breakdown_data.append({
-                "Type": "Dividends",
-                "Description": f"Dividends {idx + 1}",
-                "Amount (GEL)": f"{d.get('amount', 0):,.2f}"
-            })
-        
-        # Interest
-        for idx, i in enumerate(st.session_state.interest_inputs):
-            breakdown_data.append({
-                "Type": "Interest",
-                "Description": f"Interest {idx + 1}",
-                "Amount (GEL)": f"{i.get('amount', 0):,.2f}"
-            })
-        
-        if breakdown_data:
-            # Create dataframe using Streamlit's built-in dataframe
-            st.dataframe(breakdown_data, use_container_width=True, hide_index=True)
-            
-            st.caption(f"**Total Family Income:** {total_calculated_income:,.2f} GEL")
-        else:
-            st.caption("No income sources entered yet.")
-    
-    st.caption(f"💡 **Total Calculated Family Income:** {total_calculated_income:,.2f} GEL (used for property tax calculation)")
-else:
-    st.info("💡 Enter income sources in the tabs above to see your income summary here.")
-
 # Results Section
 st.divider()
 st.header("📊 Calculation Results")
@@ -2069,6 +2122,132 @@ except Exception as e:
     st.error(f"Error calculating taxes: {str(e)}")
     st.exception(e)
     st.info("💡 Check the Error Logs page for more details.")
+
+# Summary Section - Show all entered data
+st.divider()
+st.header("📊 Income Summary")
+st.caption("Overview of all entered income sources (verification)")
+
+total_calculated_income = calculate_total_family_income()
+
+if total_calculated_income > 0 or any([
+    st.session_state.salary_inputs,
+    st.session_state.micro_inputs,
+    st.session_state.small_inputs,
+    st.session_state.rental_inputs,
+    st.session_state.cg_inputs,
+    st.session_state.dividends_inputs,
+    st.session_state.interest_inputs,
+    st.session_state.property_inputs
+]):
+    summary_cols = st.columns(4)
+    
+    with summary_cols[0]:
+        salary_total = sum(s.get('monthly_gross', 0) * s.get('months', 0) for s in st.session_state.salary_inputs)
+        st.metric("Salary Income", f"{salary_total:,.2f} GEL", delta=f"{len(st.session_state.salary_inputs)} source(s)")
+    
+    with summary_cols[1]:
+        business_total = (
+            sum(m.get('turnover', 0) for m in st.session_state.micro_inputs) +
+            sum(s.get('turnover', 0) for s in st.session_state.small_inputs)
+        )
+        business_count = len(st.session_state.micro_inputs) + len(st.session_state.small_inputs)
+        st.metric("Business Income", f"{business_total:,.2f} GEL", delta=f"{business_count} business(es)")
+    
+    with summary_cols[2]:
+        rental_total = sum(r.get('monthly_rent', 0) * r.get('months', 0) for r in st.session_state.rental_inputs)
+        st.metric("Rental Income", f"{rental_total:,.2f} GEL", delta=f"{len(st.session_state.rental_inputs)} property(ies)")
+    
+    with summary_cols[3]:
+        investment_total = (
+            sum(d.get('amount', 0) for d in st.session_state.dividends_inputs) +
+            sum(i.get('amount', 0) for i in st.session_state.interest_inputs) +
+            sum(max(0, cg.get('sale_price', 0) - cg.get('purchase_price', 0)) for cg in st.session_state.cg_inputs)
+        )
+        investment_count = (
+            len(st.session_state.dividends_inputs) +
+            len(st.session_state.interest_inputs) +
+            len([cg for cg in st.session_state.cg_inputs if cg.get('sale_price', 0) > cg.get('purchase_price', 0)])
+        )
+        st.metric("Investment Income", f"{investment_total:,.2f} GEL", delta=f"{investment_count} source(s)")
+    
+    st.divider()
+    
+    # Detailed breakdown
+    with st.expander("📋 Detailed Income Breakdown", expanded=False):
+        breakdown_data = []
+        
+        # Salary
+        for idx, s in enumerate(st.session_state.salary_inputs):
+            annual = s.get('monthly_gross', 0) * s.get('months', 0)
+            breakdown_data.append({
+                "Type": "Salary",
+                "Description": f"Source {idx + 1}: {s.get('monthly_gross', 0):,.0f} GEL/month × {s.get('months', 0)} months",
+                "Amount (GEL)": f"{annual:,.2f}"
+            })
+        
+        # Micro Business
+        for idx, m in enumerate(st.session_state.micro_inputs):
+            breakdown_data.append({
+                "Type": "Micro Business",
+                "Description": f"Business {idx + 1}: {m.get('turnover', 0):,.0f} GEL turnover",
+                "Amount (GEL)": f"{m.get('turnover', 0):,.2f}"
+            })
+        
+        # Small Business
+        for idx, s in enumerate(st.session_state.small_inputs):
+            breakdown_data.append({
+                "Type": "Small Business",
+                "Description": f"Business {idx + 1}: {s.get('turnover', 0):,.0f} GEL turnover",
+                "Amount (GEL)": f"{s.get('turnover', 0):,.2f}"
+            })
+        
+        # Rental
+        for idx, r in enumerate(st.session_state.rental_inputs):
+            annual = r.get('monthly_rent', 0) * r.get('months', 0)
+            breakdown_data.append({
+                "Type": "Rental",
+                "Description": f"Property {idx + 1}: {r.get('monthly_rent', 0):,.0f} GEL/month × {r.get('months', 0)} months",
+                "Amount (GEL)": f"{annual:,.2f}"
+            })
+        
+        # Capital Gains
+        for idx, cg in enumerate(st.session_state.cg_inputs):
+            gain = max(0, cg.get('sale_price', 0) - cg.get('purchase_price', 0))
+            if gain > 0:
+                breakdown_data.append({
+                    "Type": "Capital Gains",
+                    "Description": f"Transaction {idx + 1}: {gain:,.0f} GEL gain",
+                    "Amount (GEL)": f"{gain:,.2f}"
+                })
+        
+        # Dividends
+        for idx, d in enumerate(st.session_state.dividends_inputs):
+            breakdown_data.append({
+                "Type": "Dividends",
+                "Description": f"Dividends {idx + 1}",
+                "Amount (GEL)": f"{d.get('amount', 0):,.2f}"
+            })
+        
+        # Interest
+        for idx, i in enumerate(st.session_state.interest_inputs):
+            breakdown_data.append({
+                "Type": "Interest",
+                "Description": f"Interest {idx + 1}",
+                "Amount (GEL)": f"{i.get('amount', 0):,.2f}"
+            })
+        
+        if breakdown_data:
+            # Create dataframe using Streamlit's built-in dataframe
+            st.dataframe(breakdown_data, use_container_width=True, hide_index=True)
+            
+            st.caption(f"**Total Family Income:** {total_calculated_income:,.2f} GEL")
+        else:
+            st.caption("No income sources entered yet.")
+    
+    st.caption(f"💡 **Total Calculated Family Income:** {total_calculated_income:,.2f} GEL (used for property tax calculation)")
+else:
+    st.info("💡 Enter income sources in the tabs above to see your income summary here.")
 
 # Footer
 st.divider()
